@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 const SAMPLE_HEADLINES = {
   reactive: [
@@ -42,6 +42,29 @@ export default function SentimentTradingDashboard() {
   const [analysis, setAnalysis] = useState(null);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState(null);
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(null);
+
+  const fetchNews = useCallback(async () => {
+    setNewsLoading(true);
+    setNewsError(null);
+    try {
+      const res = await fetch("/api/news");
+      if (!res.ok) throw new Error("Failed to fetch news");
+      const data = await res.json();
+      setNews(data.articles || []);
+    } catch (err) {
+      console.error(err);
+      setNewsError("Could not load news feed.");
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
 
   const analyzeHeadline = useCallback(
     async (text) => {
@@ -193,6 +216,47 @@ export default function SentimentTradingDashboard() {
       </div>
 
       {error && <div style={styles.errorBox}>{error}</div>}
+
+      {/* Live News Feed */}
+      <div style={styles.newsSection}>
+        <div style={styles.newsHeader}>
+          <span style={styles.cardHeader}>LIVE NEWS FEED</span>
+          <button
+            onClick={fetchNews}
+            disabled={newsLoading}
+            style={styles.refreshBtn}
+          >
+            {newsLoading ? "REFRESHING..." : "REFRESH"}
+          </button>
+        </div>
+        {newsError && <div style={styles.newsError}>{newsError}</div>}
+        {newsLoading && news.length === 0 && (
+          <div style={styles.newsLoadingText}>Loading headlines...</div>
+        )}
+        <div style={styles.newsList}>
+          {news.map((article, i) => (
+            <button
+              key={i}
+              onClick={() => loadSample(article.title)}
+              style={styles.newsItem}
+            >
+              <div style={styles.newsItemTop}>
+                <span style={styles.newsSource}>{article.source}</span>
+                <span style={styles.newsCategory}>{article.category}</span>
+                <span style={styles.newsTime}>
+                  {article.pubDate
+                    ? new Date(article.pubDate).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </span>
+              </div>
+              <div style={styles.newsTitle}>{article.title}</div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Loading */}
       {loading && (
@@ -822,5 +886,95 @@ const styles = {
     padding: "28px",
     lineHeight: 1.6,
     letterSpacing: "0.5px",
+  },
+  newsSection: {
+    padding: "24px 28px",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+  },
+  newsHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px",
+  },
+  refreshBtn: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "10px",
+    letterSpacing: "1.5px",
+    fontWeight: 600,
+    padding: "6px 14px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "#667",
+    cursor: "pointer",
+    borderRadius: "2px",
+    transition: "all 0.2s",
+  },
+  newsError: {
+    fontSize: "11px",
+    color: "#ff3366",
+    marginBottom: "10px",
+  },
+  newsLoadingText: {
+    fontSize: "11px",
+    color: "#556",
+    letterSpacing: "1px",
+    animation: "pulse 1.5s infinite",
+    textAlign: "center",
+    padding: "20px 0",
+  },
+  newsList: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px",
+    maxHeight: "320px",
+    overflowY: "auto",
+  },
+  newsItem: {
+    fontFamily: "'JetBrains Mono', monospace",
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.015)",
+    border: "1px solid rgba(255,255,255,0.04)",
+    borderRadius: "3px",
+    cursor: "pointer",
+    transition: "all 0.15s",
+    color: "inherit",
+  },
+  newsItemTop: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+    marginBottom: "6px",
+  },
+  newsSource: {
+    fontSize: "9px",
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+    color: "#00d4ff",
+  },
+  newsCategory: {
+    fontSize: "9px",
+    letterSpacing: "1px",
+    color: "#556",
+    padding: "1px 6px",
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: "2px",
+  },
+  newsTime: {
+    fontSize: "9px",
+    color: "#445",
+    marginLeft: "auto",
+  },
+  newsTitle: {
+    fontSize: "11px",
+    color: "#aab",
+    lineHeight: 1.5,
+    overflow: "hidden",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
   },
 };
