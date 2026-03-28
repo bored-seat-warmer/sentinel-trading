@@ -45,6 +45,19 @@ const saveHistory = (items) => {
   }
 };
 
+const parseAIResponse = (raw) => {
+  // Try direct parse first
+  try { return JSON.parse(raw); } catch {}
+  // Try extracting JSON object from surrounding text
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return JSON.parse(match[0]); } catch {}
+  }
+  throw new Error(
+    "The AI returned a non-structured response. This usually happens with vague or non-news headlines. Try a more specific headline."
+  );
+};
+
 const KNOWN_CRYPTO = ["BTC", "ETH", "SOL", "AVAX", "ADA", "DOT", "MATIC", "LINK", "UNI", "AAVE", "XRP", "DOGE", "SHIB", "BNB", "LTC"];
 
 const extractSymbol = (instrument) => {
@@ -190,7 +203,7 @@ export default function SentimentTradingDashboard() {
           .replace(/```json|```/g, "")
           .trim();
 
-        const parsed = JSON.parse(raw);
+        const parsed = parseAIResponse(raw);
         setAnalysis(parsed);
         setBatchAnalysis(null);
         fetchPrices(parsed);
@@ -307,7 +320,7 @@ export default function SentimentTradingDashboard() {
         .replace(/```json|```/g, "")
         .trim();
 
-      const parsed = JSON.parse(raw);
+      const parsed = parseAIResponse(raw);
       setBatchAnalysis(parsed);
       setAnalysis(null);
       fetchPrices(parsed);
