@@ -1,23 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import TradingViewChart from "./TradingViewChart";
 
-const SAMPLE_HEADLINES = {
-  reactive: [
-    "President announces 25% tariff on all semiconductor imports effective immediately",
-    "Federal Reserve signals emergency rate cut amid banking sector concerns",
-    "Major cybersecurity breach reported at three largest US banks",
-    "White House reaches surprise trade deal with China, removing all tariffs on tech goods",
-    "Oil prices surge 15% as new Middle East sanctions announced",
-    "Congress passes sweeping AI regulation bill restricting autonomous trading systems",
-  ],
-  policy: [
-    "Administration outlines 5-year plan for domestic chip manufacturing subsidies. Congress signals bipartisan support for $50B CHIPS Act expansion. Intel and TSMC announce new US fab locations.",
-    "Treasury Secretary advocates for stronger dollar policy in speech to G7 finance ministers. Fed minutes reveal internal debate over inflation targets. IMF warns of global currency volatility.",
-    "EPA proposes strictest-ever emissions standards for 2027. Auto industry lobbies for extended timeline. EV tax credits expanded to include commercial vehicles.",
-    "Bipartisan infrastructure bill advances with $200B for rural broadband. Major telecom companies lobby for reduced regulation. FCC announces new spectrum auction.",
-  ],
-};
-
 const SECTOR_COLORS = {
   Technology: "#00d4ff",
   Semiconductors: "#7b61ff",
@@ -85,6 +68,7 @@ export default function SentimentTradingDashboard() {
     new Set(["Politics", "Economy", "Congress"])
   );
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [trumpFilter, setTrumpFilter] = useState(false);
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress"];
@@ -102,7 +86,9 @@ export default function SentimentTradingDashboard() {
     });
   };
 
-  const filteredNews = news.filter((a) => activeCategories.has(a.category));
+  const filteredNews = news
+    .filter((a) => activeCategories.has(a.category))
+    .filter((a) => !trumpFilter || /trump/i.test(a.title));
 
   const fetchNews = useCallback(async () => {
     setNewsLoading(true);
@@ -178,9 +164,9 @@ export default function SentimentTradingDashboard() {
     analyzeHeadline(headline);
   };
 
-  const loadSample = (sample) => {
-    setHeadline(sample);
-    analyzeHeadline(sample);
+  const analyzeText = (text) => {
+    setHeadline(text);
+    analyzeHeadline(text);
   };
 
   return (
@@ -268,16 +254,6 @@ export default function SentimentTradingDashboard() {
           >
             {loading ? "ANALYZING..." : "ANALYZE"}
           </button>
-        </div>
-        <div style={styles.sampleSection}>
-          <span style={styles.sampleLabel}>Try a sample:</span>
-          <div style={styles.sampleList}>
-            {SAMPLE_HEADLINES[mode].map((s, i) => (
-              <button key={i} onClick={() => loadSample(s)} style={styles.sampleBtn}>
-                {s.slice(0, 65)}...
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -666,6 +642,16 @@ export default function SentimentTradingDashboard() {
               {cat}
             </button>
           ))}
+          <span style={styles.filterDivider} />
+          <button
+            onClick={() => setTrumpFilter((v) => !v)}
+            style={{
+              ...styles.filterBtn,
+              ...(trumpFilter ? styles.filterBtnTrump : {}),
+            }}
+          >
+            TRUMP TRACKER
+          </button>
           <span style={styles.filterCount}>
             {filteredNews.length} article{filteredNews.length !== 1 ? "s" : ""}
           </span>
@@ -678,7 +664,7 @@ export default function SentimentTradingDashboard() {
           {filteredNews.map((article, i) => (
             <button
               key={i}
-              onClick={() => loadSample(article.title)}
+              onClick={() => analyzeText(article.title)}
               style={styles.newsItem}
             >
               <div style={styles.newsItemTop}>
@@ -847,35 +833,6 @@ const styles = {
     cursor: "pointer",
     whiteSpace: "nowrap",
     transition: "all 0.2s",
-  },
-  sampleSection: {
-    marginTop: "14px",
-  },
-  sampleLabel: {
-    fontSize: "10px",
-    color: "#445",
-    letterSpacing: "1px",
-  },
-  sampleList: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "6px",
-    marginTop: "8px",
-  },
-  sampleBtn: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: "10px",
-    padding: "5px 10px",
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    color: "#667",
-    cursor: "pointer",
-    borderRadius: "2px",
-    transition: "all 0.15s",
-    maxWidth: "280px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
   },
   errorBox: {
     margin: "20px 28px",
@@ -1264,6 +1221,18 @@ const styles = {
     color: "#00d4ff",
     borderColor: "#00d4ff44",
     background: "rgba(0,212,255,0.06)",
+  },
+  filterDivider: {
+    width: "1px",
+    height: "18px",
+    background: "rgba(255,255,255,0.08)",
+    marginLeft: "4px",
+    marginRight: "4px",
+  },
+  filterBtnTrump: {
+    color: "#ff6b35",
+    borderColor: "#ff6b3544",
+    background: "rgba(255,107,53,0.06)",
   },
   filterCount: {
     fontSize: "9px",
