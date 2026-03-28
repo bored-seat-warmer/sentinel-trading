@@ -45,8 +45,15 @@ const saveHistory = (items) => {
   }
 };
 
+const KNOWN_CRYPTO = ["BTC", "ETH", "SOL", "AVAX", "ADA", "DOT", "MATIC", "LINK", "UNI", "AAVE", "XRP", "DOGE", "SHIB", "BNB", "LTC"];
+
 const extractSymbol = (instrument) => {
   if (!instrument) return null;
+  const upper = instrument.toUpperCase();
+  // Check for crypto pairs like BTCUSD, BTC-USD, BTC/USD
+  for (const c of KNOWN_CRYPTO) {
+    if (upper.includes(c)) return c;
+  }
   // Match standalone uppercase ticker patterns like "SOXX", "SPY", "XLF"
   const match = instrument.match(/\b([A-Z]{1,5})\b/);
   return match ? match[1] : null;
