@@ -73,6 +73,43 @@ Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
   "risks": "1-2 sentence key risk to this thesis"
 }`;
 
+const BATCH_SYSTEM_PROMPT = `You are a market strategist synthesizing multiple news headlines into a unified market briefing. You are given several recent headlines — analyze them together to identify the dominant market narrative, net positioning, and cross-sector themes.
+
+CRITICAL CONSISTENCY RULES:
+- The overall_signal must logically follow from the combined sentiment of the headlines.
+- If headlines conflict, acknowledge the tension and weight the higher-severity events more heavily.
+- Think step by step: identify common themes, assess net market direction, then derive positioning.
+
+Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
+{
+  "market_mood": "risk-on" | "risk-off" | "mixed" | "rotating",
+  "severity": 1-10 (overall market impact of these events combined),
+  "dominant_narrative": "1-2 sentence summary of what these headlines collectively signal",
+  "themes": [
+    { "name": "Theme Name", "sentiment": "bullish" | "bearish" | "neutral", "headlines_count": number }
+  ],
+  "sectors": [
+    { "name": "Sector Name", "net_impact": "positive" | "negative" | "neutral", "magnitude": 1-10, "reasoning": "1 sentence" }
+  ],
+  "overall_signal": {
+    "action": "LONG" | "SHORT" | "HOLD",
+    "instrument": "best single ETF/ticker for this environment",
+    "confidence": 1-100,
+    "timeframe": "hours" | "1-2 days" | "week"
+  },
+  "tickers": [
+    {
+      "symbol": "TICKER",
+      "name": "Full Name",
+      "direction": "long" | "short" | "watch",
+      "note": "1 sentence"
+    }
+  ],
+  "briefing": "3-5 sentence market briefing synthesizing all the headlines into an actionable outlook",
+  "contrarian_view": "1-2 sentence case for the opposite positioning",
+  "risks": "1-2 sentence key risks to the dominant thesis"
+}`;
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -89,15 +126,20 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing or empty text field" });
   }
 
-  if (mode !== "reactive" && mode !== "policy") {
-    return res.status(400).json({ error: "Mode must be 'reactive' or 'policy'" });
+  if (mode !== "reactive" && mode !== "policy" && mode !== "batch") {
+    return res.status(400).json({ error: "Mode must be 'reactive', 'policy', or 'batch'" });
   }
 
-  if (text.length > 5000) {
-    return res.status(400).json({ error: "Text too long (max 5000 characters)" });
+  if (text.length > 10000) {
+    return res.status(400).json({ error: "Text too long (max 10000 characters)" });
   }
 
-  const systemPrompt = mode === "reactive" ? REACTIVE_SYSTEM_PROMPT : POLICY_SYSTEM_PROMPT;
+  const systemPrompt =
+    mode === "batch"
+      ? BATCH_SYSTEM_PROMPT
+      : mode === "reactive"
+      ? REACTIVE_SYSTEM_PROMPT
+      : POLICY_SYSTEM_PROMPT;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -109,7 +151,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
+        max_tokens: mode === "batch" ? 2048 : 1024,
         system: systemPrompt,
         messages: [{ role: "user", content: text.trim() }],
       }),

@@ -70,6 +70,8 @@ export default function SentimentTradingDashboard() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [trumpFilter, setTrumpFilter] = useState(false);
   const [alerts, setAlerts] = useState([]);
+  const [selectedArticles, setSelectedArticles] = useState(new Set());
+  const [batchAnalysis, setBatchAnalysis] = useState(null);
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress"];
@@ -205,6 +207,66 @@ export default function SentimentTradingDashboard() {
       : title;
     setHeadline(text);
     analyzeHeadline(text);
+  };
+
+  const toggleSelectArticle = (index) => {
+    setSelectedArticles((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const runBatchAnalysis = async () => {
+    const selected = filteredNews.filter((_, i) => selectedArticles.has(i));
+    if (selected.length < 2) return;
+
+    const text = selected
+      .map((a, i) => {
+        const body = a.description ? `${a.title}\n${a.description}` : a.title;
+        return `[${i + 1}] ${body}`;
+      })
+      .join("\n\n");
+
+    setHeadline(text);
+    setLoading(true);
+    setError(null);
+    setBatchAnalysis(null);
+    setAnalysis(null);
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "batch", text }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Request failed (${response.status})`);
+      }
+
+      const data = await response.json();
+      const raw = data.content
+        ?.map((b) => (b.type === "text" ? b.text : ""))
+        .join("")
+        .replace(/```json|```/g, "")
+        .trim();
+
+      const parsed = JSON.parse(raw);
+      setBatchAnalysis(parsed);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      setSelectedArticles(new Set());
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Batch analysis failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -647,6 +709,217 @@ export default function SentimentTradingDashboard() {
         </div>
       )}
 
+      {/* Batch Results */}
+      {batchAnalysis && !loading && (
+        <div ref={resultsRef} style={styles.batchResults}>
+          <div style={styles.batchResultsHeader}>
+            <span style={styles.cardHeader}>MARKET BRIEFING</span>
+            <span
+              style={{
+                ...styles.batchMood,
+                color:
+                  batchAnalysis.market_mood === "risk-on"
+                    ? "#00e599"
+                    : batchAnalysis.market_mood === "risk-off"
+                    ? "#ff3366"
+                    : "#ffcc00",
+              }}
+            >
+              {batchAnalysis.market_mood?.toUpperCase()}
+            </span>
+          </div>
+
+          <div style={styles.resultsGrid}>
+            {/* Signal */}
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>OVERALL SIGNAL</div>
+              <div style={styles.signalContent}>
+                <div
+                  style={{
+                    ...styles.signalBadge,
+                    background:
+                      batchAnalysis.overall_signal?.action === "LONG"
+                        ? "#00e599"
+                        : batchAnalysis.overall_signal?.action === "SHORT"
+                        ? "#ff3366"
+                        : "#888",
+                  }}
+                >
+                  {batchAnalysis.overall_signal?.action}
+                </div>
+                <div style={styles.signalInstrument}>
+                  {batchAnalysis.overall_signal?.instrument}
+                  {extractSymbol(batchAnalysis.overall_signal?.instrument) && (
+                    <span style={styles.tickerLinks}>
+                      {Object.entries(tickerLinks(extractSymbol(batchAnalysis.overall_signal.instrument))).map(
+                        ([name, url]) => (
+                          <a key={name} href={url} target="_blank" rel="noopener noreferrer" style={styles.tickerLink}>
+                            {name === "tradingview" ? "TV" : name === "yahoo" ? "Yahoo" : "Finviz"}
+                          </a>
+                        )
+                      )}
+                    </span>
+                  )}
+                </div>
+                <div style={styles.signalMeta}>
+                  <span>Confidence: {batchAnalysis.overall_signal?.confidence}%</span>
+                  <span>Timeframe: {batchAnalysis.overall_signal?.timeframe}</span>
+                </div>
+                <div style={styles.severityRow}>
+                  <span style={styles.severityLabel}>SEVERITY</span>
+                  <div style={styles.severityBar}>
+                    {Array.from({ length: 10 }, (_, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          ...styles.severityBlock,
+                          background:
+                            i < batchAnalysis.severity
+                              ? batchAnalysis.severity >= 8
+                                ? "#ff3366"
+                                : batchAnalysis.severity >= 5
+                                ? "#ffcc00"
+                                : "#00e599"
+                              : "rgba(255,255,255,0.06)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span style={styles.severityValue}>{batchAnalysis.severity}/10</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Themes */}
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>THEMES</div>
+              <div style={styles.sectorList}>
+                {batchAnalysis.themes?.map((t, i) => (
+                  <div key={i} style={styles.sectorRow}>
+                    <div
+                      style={{
+                        ...styles.sectorDot,
+                        background:
+                          t.sentiment === "bullish" ? "#00e599"
+                            : t.sentiment === "bearish" ? "#ff3366"
+                            : "#888",
+                      }}
+                    />
+                    <span style={styles.sectorName}>{t.name}</span>
+                    <span
+                      style={{
+                        ...styles.sectorImpact,
+                        color:
+                          t.sentiment === "bullish" ? "#00e599"
+                            : t.sentiment === "bearish" ? "#ff3366"
+                            : "#888",
+                      }}
+                    >
+                      {t.sentiment?.toUpperCase()} ({t.headlines_count})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sectors */}
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>NET SECTOR IMPACT</div>
+              <div style={styles.sectorList}>
+                {batchAnalysis.sectors?.map((s, i) => (
+                  <div key={i} style={styles.sectorRow}>
+                    <div
+                      style={{
+                        ...styles.sectorDot,
+                        background: getSectorColor(s.name),
+                      }}
+                    />
+                    <span style={styles.sectorName}>{s.name}</span>
+                    <span
+                      style={{
+                        ...styles.sectorImpact,
+                        color:
+                          s.net_impact === "positive" ? "#00e599"
+                            : s.net_impact === "negative" ? "#ff3366"
+                            : "#888",
+                      }}
+                    >
+                      {s.net_impact?.toUpperCase()} ({s.magnitude}/10)
+                    </span>
+                    {s.reasoning && (
+                      <span style={styles.sectorThesis}>{s.reasoning}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tickers */}
+            {batchAnalysis.tickers?.length > 0 && (
+              <div style={styles.card}>
+                <div style={styles.cardHeader}>TICKERS TO WATCH</div>
+                <div style={styles.tickerList}>
+                  {batchAnalysis.tickers.map((t, i) => (
+                    <div key={i} style={styles.tickerRow}>
+                      <div style={styles.tickerRowTop}>
+                        <span
+                          style={{
+                            ...styles.tickerSymbol,
+                            color:
+                              t.direction === "long" ? "#00e599"
+                                : t.direction === "short" ? "#ff3366"
+                                : "#ffcc00",
+                          }}
+                        >
+                          {t.symbol}
+                        </span>
+                        <span style={styles.tickerName}>{t.name}</span>
+                        <span
+                          style={{
+                            ...styles.tickerDirection,
+                            color:
+                              t.direction === "long" ? "#00e599"
+                                : t.direction === "short" ? "#ff3366"
+                                : "#ffcc00",
+                          }}
+                        >
+                          {t.direction?.toUpperCase()}
+                        </span>
+                      </div>
+                      <div style={styles.tickerNote}>{t.note}</div>
+                      <div style={styles.tickerRowLinks}>
+                        {Object.entries(tickerLinks(t.symbol)).map(([name, url]) => (
+                          <a key={name} href={url} target="_blank" rel="noopener noreferrer" style={styles.tickerLink}>
+                            {name === "tradingview" ? "TradingView" : name === "yahoo" ? "Yahoo Finance" : "Finviz"}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Briefing */}
+            <div style={{ ...styles.card, gridColumn: "1 / -1" }}>
+              <div style={styles.cardHeader}>BRIEFING</div>
+              <p style={styles.rationale}>{batchAnalysis.dominant_narrative}</p>
+              <p style={{ ...styles.rationale, marginTop: "12px" }}>{batchAnalysis.briefing}</p>
+              <div style={{ ...styles.riskBox, marginTop: "16px" }}>
+                <span style={styles.riskLabel}>KEY RISK</span>
+                <span style={styles.riskText}>{batchAnalysis.risks}</span>
+              </div>
+              {batchAnalysis.contrarian_view && (
+                <div style={{ ...styles.riskBox, marginTop: "8px", borderColor: "rgba(123,97,255,0.15)", background: "rgba(123,97,255,0.04)" }}>
+                  <span style={{ ...styles.riskLabel, color: "#7b61ff" }}>CONTRARIAN</span>
+                  <span style={styles.riskText}>{batchAnalysis.contrarian_view}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* History */}
       {history.length > 0 && (
         <div style={styles.historySection}>
@@ -756,28 +1029,70 @@ export default function SentimentTradingDashboard() {
         {newsLoading && news.length === 0 && (
           <div style={styles.newsLoadingText}>Loading headlines...</div>
         )}
+        {selectedArticles.size >= 2 && (
+          <div style={styles.batchBar}>
+            <span style={styles.batchCount}>
+              {selectedArticles.size} selected
+            </span>
+            <button
+              onClick={runBatchAnalysis}
+              disabled={loading}
+              style={styles.batchBtn}
+            >
+              {loading ? "ANALYZING..." : "BATCH ANALYZE"}
+            </button>
+            <button
+              onClick={() => setSelectedArticles(new Set())}
+              style={styles.batchClear}
+            >
+              CLEAR
+            </button>
+          </div>
+        )}
         <div style={styles.newsList}>
           {filteredNews.map((article, i) => (
-            <div key={i} style={styles.newsItem}>
-              <div
-                style={styles.newsClickable}
-                onClick={() => analyzeArticle(article.title, article.description)}
-                role="button"
-                tabIndex={0}
-              >
-                <div style={styles.newsItemTop}>
-                  <span style={styles.newsSource}>{article.source}</span>
-                  <span style={styles.newsCategory}>{article.category}</span>
-                  <span style={styles.newsTime}>
-                    {article.pubDate
-                      ? new Date(article.pubDate).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : ""}
-                  </span>
+            <div
+              key={i}
+              style={{
+                ...styles.newsItem,
+                ...(selectedArticles.has(i) ? styles.newsItemSelected : {}),
+              }}
+            >
+              <div style={styles.newsItemRow}>
+                <div
+                  style={{
+                    ...styles.newsCheckbox,
+                    ...(selectedArticles.has(i) ? styles.newsCheckboxChecked : {}),
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelectArticle(i);
+                  }}
+                >
+                  {selectedArticles.has(i) && (
+                    <span style={styles.checkMark}>&#10003;</span>
+                  )}
                 </div>
-                <div style={styles.newsTitle}>{article.title}</div>
+                <div
+                  style={styles.newsClickable}
+                  onClick={() => analyzeArticle(article.title, article.description)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div style={styles.newsItemTop}>
+                    <span style={styles.newsSource}>{article.source}</span>
+                    <span style={styles.newsCategory}>{article.category}</span>
+                    <span style={styles.newsTime}>
+                      {article.pubDate
+                        ? new Date(article.pubDate).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                    </span>
+                  </div>
+                  <div style={styles.newsTitle}>{article.title}</div>
+                </div>
               </div>
               {article.link && (
                 <a
@@ -1455,6 +1770,91 @@ const styles = {
     gap: "8px",
     maxHeight: "320px",
     overflowY: "auto",
+  },
+  batchBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 14px",
+    marginBottom: "12px",
+    background: "rgba(0,212,255,0.04)",
+    border: "1px solid rgba(0,212,255,0.15)",
+    borderRadius: "4px",
+  },
+  batchCount: {
+    fontSize: "10px",
+    color: "#00d4ff",
+    letterSpacing: "1px",
+    fontWeight: 600,
+  },
+  batchBtn: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "10px",
+    letterSpacing: "1.5px",
+    fontWeight: 600,
+    padding: "6px 16px",
+    background: "linear-gradient(135deg, #00d4ff 0%, #0088aa 100%)",
+    color: "#000",
+    border: "none",
+    borderRadius: "2px",
+    cursor: "pointer",
+    transition: "all 0.2s",
+  },
+  batchClear: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1px",
+    padding: "4px 10px",
+    background: "transparent",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "#556",
+    cursor: "pointer",
+    borderRadius: "2px",
+  },
+  newsItemSelected: {
+    borderColor: "rgba(0,212,255,0.3)",
+    background: "rgba(0,212,255,0.03)",
+  },
+  newsItemRow: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "flex-start",
+  },
+  newsCheckbox: {
+    width: "16px",
+    height: "16px",
+    borderRadius: "2px",
+    border: "1px solid rgba(255,255,255,0.15)",
+    cursor: "pointer",
+    flexShrink: 0,
+    marginTop: "2px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s",
+  },
+  newsCheckboxChecked: {
+    background: "rgba(0,212,255,0.15)",
+    borderColor: "#00d4ff",
+  },
+  checkMark: {
+    fontSize: "10px",
+    color: "#00d4ff",
+    lineHeight: 1,
+  },
+  batchResults: {
+    padding: "24px 28px",
+  },
+  batchResultsHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    marginBottom: "16px",
+  },
+  batchMood: {
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "2px",
   },
   newsItem: {
     fontFamily: "'JetBrains Mono', monospace",
