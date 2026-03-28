@@ -15,6 +15,10 @@ const SECTOR_COLORS = {
   Telecom: "#aa88ff",
   Automotive: "#ff8844",
   Agriculture: "#66dd66",
+  Crypto: "#f7931a",
+  Bitcoin: "#f7931a",
+  Ethereum: "#627eea",
+  DeFi: "#8b5cf6",
 };
 
 const getSectorColor = (sector) => SECTOR_COLORS[sector] || "#888";
@@ -65,7 +69,7 @@ export default function SentimentTradingDashboard() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState(null);
   const [activeCategories, setActiveCategories] = useState(
-    new Set(["Politics", "Economy", "Congress"])
+    new Set(["Politics", "Economy", "Congress", "Crypto"])
   );
   const [lastRefresh, setLastRefresh] = useState(null);
   const [trumpFilter, setTrumpFilter] = useState(false);
@@ -74,7 +78,7 @@ export default function SentimentTradingDashboard() {
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const resultsRef = useRef(null);
 
-  const NEWS_CATEGORIES = ["Politics", "Economy", "Congress"];
+  const NEWS_CATEGORIES = ["Politics", "Economy", "Congress", "Crypto"];
   const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
   const toggleCategory = (cat) => {
@@ -651,6 +655,67 @@ export default function SentimentTradingDashboard() {
               </div>
             )}
 
+            {/* Crypto Impact */}
+            {analysis.crypto_impact && (
+              <div style={styles.card}>
+                <div style={styles.cardHeader}>CRYPTO IMPACT</div>
+                <div style={styles.signalContent}>
+                  <div style={styles.cryptoOverall}>
+                    <span
+                      style={{
+                        ...styles.signalBadge,
+                        background:
+                          analysis.crypto_impact.overall === "bullish"
+                            ? "#00e599"
+                            : analysis.crypto_impact.overall === "bearish"
+                            ? "#ff3366"
+                            : "#888",
+                        fontSize: "11px",
+                        padding: "4px 12px",
+                      }}
+                    >
+                      {analysis.crypto_impact.overall?.toUpperCase()}
+                    </span>
+                    <span style={styles.severityValue}>
+                      {analysis.crypto_impact.magnitude}/10
+                    </span>
+                  </div>
+                  <div style={styles.cryptoNarrative}>
+                    {analysis.crypto_impact.narrative}
+                  </div>
+                  <div style={styles.sectorList}>
+                    {analysis.crypto_impact.assets?.map((a, i) => (
+                      <div key={i} style={styles.sectorRow}>
+                        <div
+                          style={{
+                            ...styles.sectorDot,
+                            background:
+                              a.symbol === "BTC" ? "#f7931a"
+                                : a.symbol === "ETH" ? "#627eea"
+                                : a.symbol === "SOL" ? "#9945ff"
+                                : "#888",
+                          }}
+                        />
+                        <span style={styles.sectorName}>{a.symbol}</span>
+                        <span
+                          style={{
+                            ...styles.sectorImpact,
+                            color:
+                              a.impact === "positive" ? "#00e599"
+                                : a.impact === "negative" ? "#ff3366"
+                                : "#888",
+                          }}
+                        >
+                          {a.impact?.toUpperCase()}
+                        </span>
+                        <span style={styles.sectorThesis}>{a.reasoning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Technical Context */}
             {analysis.technical_context && (
               <div style={styles.card}>
@@ -854,6 +919,67 @@ export default function SentimentTradingDashboard() {
               </div>
             </div>
 
+            {/* Crypto Impact */}
+            {batchAnalysis.crypto_impact && (
+              <div style={styles.card}>
+                <div style={styles.cardHeader}>CRYPTO IMPACT</div>
+                <div style={styles.signalContent}>
+                  <div style={styles.cryptoOverall}>
+                    <span
+                      style={{
+                        ...styles.signalBadge,
+                        background:
+                          batchAnalysis.crypto_impact.overall === "bullish"
+                            ? "#00e599"
+                            : batchAnalysis.crypto_impact.overall === "bearish"
+                            ? "#ff3366"
+                            : "#888",
+                        fontSize: "11px",
+                        padding: "4px 12px",
+                      }}
+                    >
+                      {batchAnalysis.crypto_impact.overall?.toUpperCase()}
+                    </span>
+                    <span style={styles.severityValue}>
+                      {batchAnalysis.crypto_impact.magnitude}/10
+                    </span>
+                  </div>
+                  <div style={styles.cryptoNarrative}>
+                    {batchAnalysis.crypto_impact.narrative}
+                  </div>
+                  <div style={styles.sectorList}>
+                    {batchAnalysis.crypto_impact.assets?.map((a, i) => (
+                      <div key={i} style={styles.sectorRow}>
+                        <div
+                          style={{
+                            ...styles.sectorDot,
+                            background:
+                              a.symbol === "BTC" ? "#f7931a"
+                                : a.symbol === "ETH" ? "#627eea"
+                                : a.symbol === "SOL" ? "#9945ff"
+                                : "#888",
+                          }}
+                        />
+                        <span style={styles.sectorName}>{a.symbol}</span>
+                        <span
+                          style={{
+                            ...styles.sectorImpact,
+                            color:
+                              a.impact === "positive" ? "#00e599"
+                                : a.impact === "negative" ? "#ff3366"
+                                : "#888",
+                          }}
+                        >
+                          {a.impact?.toUpperCase()}
+                        </span>
+                        <span style={styles.sectorThesis}>{a.reasoning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Tickers */}
             {batchAnalysis.tickers?.length > 0 && (
               <div style={styles.card}>
@@ -1005,7 +1131,11 @@ export default function SentimentTradingDashboard() {
               onClick={() => toggleCategory(cat)}
               style={{
                 ...styles.filterBtn,
-                ...(activeCategories.has(cat) ? styles.filterBtnActive : {}),
+                ...(activeCategories.has(cat)
+                  ? cat === "Crypto"
+                    ? styles.filterBtnCrypto
+                    : styles.filterBtnActive
+                  : {}),
               }}
             >
               {cat}
@@ -1657,6 +1787,16 @@ const styles = {
     color: "#aab",
     lineHeight: 1.6,
   },
+  cryptoOverall: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  cryptoNarrative: {
+    fontSize: "11px",
+    color: "#889",
+    lineHeight: 1.6,
+  },
   chartSection: {
     padding: "0 28px 24px",
   },
@@ -1726,6 +1866,11 @@ const styles = {
     background: "rgba(255,255,255,0.08)",
     marginLeft: "4px",
     marginRight: "4px",
+  },
+  filterBtnCrypto: {
+    color: "#f7931a",
+    borderColor: "#f7931a44",
+    background: "rgba(247,147,26,0.06)",
   },
   filterBtnTrump: {
     color: "#ff6b35",

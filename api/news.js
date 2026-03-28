@@ -13,6 +13,9 @@ const FEEDS = [
   { url: "https://rss.politico.com/politics-news.xml", source: "Politico", category: "Politics" },
   { url: "https://rss.politico.com/congress.xml", source: "Politico", category: "Congress" },
   { url: "https://rss.politico.com/economy.xml", source: "Politico", category: "Economy" },
+  { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", source: "CoinDesk", category: "Crypto" },
+  { url: "https://cointelegraph.com/rss", source: "CoinTelegraph", category: "Crypto" },
+  { url: "https://decrypt.co/feed", source: "Decrypt", category: "Crypto" },
 ];
 
 export default async function handler(req, res) {
@@ -42,7 +45,7 @@ export default async function handler(req, res) {
     .flatMap((r) => r.value)
     .filter((a) => a.title)
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 40);
+    .slice(0, 60);
 
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
   return res.status(200).json({ articles });
