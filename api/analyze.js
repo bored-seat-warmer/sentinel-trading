@@ -175,7 +175,7 @@ export default async function handler(req, res) {
       "SPY", "QQQ", "IWM", "DIA",          // broad market
       "XLE", "XLF", "XLK", "XLV", "XLI",   // sector ETFs
       "SOXX", "GLD", "TLT", "UNG",          // semis, gold, bonds, natgas
-      "BTC-USD", "ETH-USD", "SOL-USD",      // crypto
+      "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD", // crypto
       "DX-Y.NYB",                            // dollar index
     ];
     const quotes = await Promise.allSettled(
