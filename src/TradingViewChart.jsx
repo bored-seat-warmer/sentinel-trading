@@ -6,7 +6,6 @@ export default function TradingViewChart({ symbol }) {
   useEffect(() => {
     if (!containerRef.current || !symbol) return;
 
-    // Clean previous widget
     containerRef.current.innerHTML = "";
 
     const script = document.createElement("script");
@@ -27,7 +26,7 @@ export default function TradingViewChart({ symbol }) {
       allow_symbol_change: true,
       save_image: false,
       calendar: false,
-      studies: ["STD;MACD", "STD;RSI"],
+      studies: ["STD;MACD"],
       support_host: "https://www.tradingview.com",
     });
 
@@ -46,7 +45,7 @@ export default function TradingViewChart({ symbol }) {
     <div
       ref={containerRef}
       className="tradingview-widget-container"
-      style={{ height: "420px", width: "100%" }}
+      style={{ height: "700px", width: "100%" }}
     />
   );
 }
