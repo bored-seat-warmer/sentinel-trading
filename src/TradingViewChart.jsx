@@ -9,25 +9,18 @@ export default function TradingViewChart({ symbol }) {
     containerRef.current.innerHTML = "";
 
     const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      autosize: true,
       symbol: symbol,
-      interval: "D",
-      timezone: "Etc/UTC",
-      theme: "dark",
-      style: "1",
+      width: "100%",
+      height: "100%",
       locale: "en",
-      backgroundColor: "rgba(10, 12, 16, 1)",
-      gridColor: "rgba(255, 255, 255, 0.03)",
-      hide_top_toolbar: false,
-      hide_legend: false,
-      allow_symbol_change: true,
-      save_image: false,
-      calendar: false,
-      studies: ["STD;MACD"],
-      support_host: "https://www.tradingview.com",
+      dateRange: "3M",
+      colorTheme: "dark",
+      isTransparent: true,
+      autosize: true,
+      largeChartUrl: `https://www.tradingview.com/chart/?symbol=${symbol}`,
     });
 
     const wrapper = document.createElement("div");
@@ -45,7 +38,7 @@ export default function TradingViewChart({ symbol }) {
     <div
       ref={containerRef}
       className="tradingview-widget-container"
-      style={{ height: "700px", width: "100%" }}
+      style={{ height: "220px", width: "100%" }}
     />
   );
 }

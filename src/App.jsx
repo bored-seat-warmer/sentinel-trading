@@ -530,8 +530,18 @@ export default function SentimentTradingDashboard() {
           {/* TradingView Chart */}
           {extractSymbol(analysis.signal?.instrument) && (
             <div style={styles.chartSection}>
-              <div style={styles.cardHeader}>
-                CHART — {extractSymbol(analysis.signal.instrument)}
+              <div style={styles.chartHeader}>
+                <span style={styles.cardHeader}>
+                  CHART — {extractSymbol(analysis.signal.instrument)}
+                </span>
+                <a
+                  href={`https://www.tradingview.com/chart/?symbol=${extractSymbol(analysis.signal.instrument)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.fullChartLink}
+                >
+                  OPEN FULL CHART
+                </a>
               </div>
               <TradingViewChart symbol={extractSymbol(analysis.signal.instrument)} />
             </div>
@@ -1138,6 +1148,23 @@ const styles = {
   },
   chartSection: {
     padding: "0 28px 24px",
+  },
+  chartHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px",
+  },
+  fullChartLink: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1.5px",
+    color: "#00d4ff",
+    textDecoration: "none",
+    padding: "4px 10px",
+    border: "1px solid rgba(0,212,255,0.2)",
+    borderRadius: "2px",
+    transition: "all 0.15s",
   },
   newsSection: {
     padding: "24px 28px",
