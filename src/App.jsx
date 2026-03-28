@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 const SAMPLE_HEADLINES = {
   reactive: [
@@ -45,6 +45,7 @@ export default function SentimentTradingDashboard() {
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState(null);
+  const resultsRef = useRef(null);
 
   const fetchNews = useCallback(async () => {
     setNewsLoading(true);
@@ -94,6 +95,7 @@ export default function SentimentTradingDashboard() {
 
         const parsed = JSON.parse(raw);
         setAnalysis(parsed);
+        setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
         setHistory((prev) => [
           { text, mode, analysis: parsed, timestamp: new Date() },
           ...prev.slice(0, 9),
@@ -217,47 +219,6 @@ export default function SentimentTradingDashboard() {
 
       {error && <div style={styles.errorBox}>{error}</div>}
 
-      {/* Live News Feed */}
-      <div style={styles.newsSection}>
-        <div style={styles.newsHeader}>
-          <span style={styles.cardHeader}>LIVE NEWS FEED</span>
-          <button
-            onClick={fetchNews}
-            disabled={newsLoading}
-            style={styles.refreshBtn}
-          >
-            {newsLoading ? "REFRESHING..." : "REFRESH"}
-          </button>
-        </div>
-        {newsError && <div style={styles.newsError}>{newsError}</div>}
-        {newsLoading && news.length === 0 && (
-          <div style={styles.newsLoadingText}>Loading headlines...</div>
-        )}
-        <div style={styles.newsList}>
-          {news.map((article, i) => (
-            <button
-              key={i}
-              onClick={() => loadSample(article.title)}
-              style={styles.newsItem}
-            >
-              <div style={styles.newsItemTop}>
-                <span style={styles.newsSource}>{article.source}</span>
-                <span style={styles.newsCategory}>{article.category}</span>
-                <span style={styles.newsTime}>
-                  {article.pubDate
-                    ? new Date(article.pubDate).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
-                </span>
-              </div>
-              <div style={styles.newsTitle}>{article.title}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Loading */}
       {loading && (
         <div style={styles.loadingBox}>
@@ -274,7 +235,7 @@ export default function SentimentTradingDashboard() {
 
       {/* Results */}
       {analysis && !loading && (
-        <div style={styles.resultsGrid}>
+        <div ref={resultsRef} style={styles.resultsGrid}>
           {/* Signal Card */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>SIGNAL</div>
@@ -482,6 +443,47 @@ export default function SentimentTradingDashboard() {
           </div>
         </div>
       )}
+
+      {/* Live News Feed */}
+      <div style={styles.newsSection}>
+        <div style={styles.newsHeader}>
+          <span style={styles.cardHeader}>LIVE NEWS FEED</span>
+          <button
+            onClick={fetchNews}
+            disabled={newsLoading}
+            style={styles.refreshBtn}
+          >
+            {newsLoading ? "REFRESHING..." : "REFRESH"}
+          </button>
+        </div>
+        {newsError && <div style={styles.newsError}>{newsError}</div>}
+        {newsLoading && news.length === 0 && (
+          <div style={styles.newsLoadingText}>Loading headlines...</div>
+        )}
+        <div style={styles.newsList}>
+          {news.map((article, i) => (
+            <button
+              key={i}
+              onClick={() => loadSample(article.title)}
+              style={styles.newsItem}
+            >
+              <div style={styles.newsItemTop}>
+                <span style={styles.newsSource}>{article.source}</span>
+                <span style={styles.newsCategory}>{article.category}</span>
+                <span style={styles.newsTime}>
+                  {article.pubDate
+                    ? new Date(article.pubDate).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </span>
+              </div>
+              <div style={styles.newsTitle}>{article.title}</div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Disclaimer */}
       <footer style={styles.footer}>
