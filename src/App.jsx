@@ -102,8 +102,8 @@ export default function SentimentTradingDashboard() {
       <header style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.logo}>
-            <span style={styles.logoIcon}>&#9670;</span>
-            <span style={styles.logoText}>SENTINEL</span>
+            <span style={styles.logoIcon}>&#9650;</span>
+            <span style={styles.logoText}>ATLAS ALPHA</span>
           </div>
           <span style={styles.tagline}>Political Sentiment Trading System</span>
         </div>

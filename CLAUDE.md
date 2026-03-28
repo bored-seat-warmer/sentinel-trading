@@ -1,4 +1,4 @@
-# SENTINEL — Political Sentiment Trading System
+# Atlas Alpha — Political Sentiment Trading System
 
 ## What This Is
 An AI-powered trading dashboard that analyzes political news and policy developments for market impact. Educational/prototype stage — not live trading yet.
