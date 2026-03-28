@@ -168,6 +168,31 @@ export default async function handler(req, res) {
       ? REACTIVE_SYSTEM_PROMPT
       : POLICY_SYSTEM_PROMPT;
 
+  // Fetch live benchmark prices to give Claude current market context
+  let priceContext = "";
+  try {
+    const benchmarks = ["SPY", "QQQ", "BTC-USD", "ETH-USD", "DXY"];
+    const quotes = await Promise.allSettled(
+      benchmarks.map(async (sym) => {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`,
+          { headers: { "User-Agent": "AtlasAlpha/1.0" } }
+        );
+        if (!r.ok) return null;
+        const d = await r.json();
+        const meta = d.chart?.result?.[0]?.meta;
+        if (!meta) return null;
+        return `${sym.replace("-USD", "")}: $${meta.regularMarketPrice.toLocaleString()}`;
+      })
+    );
+    const lines = quotes
+      .filter((q) => q.status === "fulfilled" && q.value)
+      .map((q) => q.value);
+    if (lines.length > 0) {
+      priceContext = `\n\n[CURRENT MARKET PRICES — use these for any technical levels, support/resistance, and key levels in your analysis]\n${lines.join(" | ")}`;
+    }
+  } catch {}
+
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -180,7 +205,7 @@ export default async function handler(req, res) {
         model: "claude-sonnet-4-20250514",
         max_tokens: mode === "batch" ? 2048 : 1024,
         system: systemPrompt,
-        messages: [{ role: "user", content: text.trim() }],
+        messages: [{ role: "user", content: text.trim() + priceContext }],
       }),
     });
 
