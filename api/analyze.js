@@ -9,9 +9,22 @@ Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
   ],
   "signal": {
     "action": "LONG" | "SHORT" | "HOLD",
-    "instrument": "specific ETF or ticker suggestion",
+    "instrument": "specific ETF or ticker symbol (e.g. SOXX, XLF, SPY)",
     "confidence": 1-100,
     "timeframe": "minutes" | "hours" | "1-2 days"
+  },
+  "tickers": [
+    {
+      "symbol": "TICKER",
+      "name": "Full Name",
+      "direction": "long" | "short" | "watch",
+      "note": "1 sentence on why this specific ticker"
+    }
+  ],
+  "technical_context": {
+    "key_levels": "Mention relevant support/resistance price levels if widely known for the primary instrument",
+    "indicators_to_watch": "Which technical indicators (MACD, RSI, VWAP, volume) are most relevant and why",
+    "entry_trigger": "What price action or indicator signal would confirm this trade"
   },
   "rationale": "2-3 sentence explanation of the trade logic",
   "risks": "1-2 sentence key risk to this trade"
@@ -28,9 +41,22 @@ Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
   ],
   "signal": {
     "primary_trade": "specific positioning recommendation",
-    "instrument": "specific ETF or sector suggestion",
+    "instrument": "specific ETF or sector ticker symbol (e.g. XLK, XLE, IWM)",
     "confidence": 1-100,
     "hold_period": "days-weeks" | "weeks-months"
+  },
+  "tickers": [
+    {
+      "symbol": "TICKER",
+      "name": "Full Name",
+      "direction": "overweight" | "underweight" | "watch",
+      "note": "1 sentence on why this specific ticker"
+    }
+  ],
+  "technical_context": {
+    "key_levels": "Mention relevant support/resistance or moving average levels for the primary instrument",
+    "indicators_to_watch": "Which technical indicators or macro signals to monitor",
+    "entry_trigger": "What conditions would confirm this positioning"
   },
   "macro_view": "2-3 sentence synthesis of the policy landscape and investment implications",
   "risks": "1-2 sentence key risk to this thesis"

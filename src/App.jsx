@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import TradingViewChart from "./TradingViewChart";
 
 const SAMPLE_HEADLINES = {
   reactive: [
@@ -34,6 +35,19 @@ const SECTOR_COLORS = {
 };
 
 const getSectorColor = (sector) => SECTOR_COLORS[sector] || "#888";
+
+const extractSymbol = (instrument) => {
+  if (!instrument) return null;
+  // Match standalone uppercase ticker patterns like "SOXX", "SPY", "XLF"
+  const match = instrument.match(/\b([A-Z]{1,5})\b/);
+  return match ? match[1] : null;
+};
+
+const tickerLinks = (symbol) => ({
+  tradingview: `https://www.tradingview.com/chart/?symbol=${symbol}`,
+  yahoo: `https://finance.yahoo.com/quote/${symbol}`,
+  finviz: `https://finviz.com/quote.ashx?t=${symbol}`,
+});
 
 export default function SentimentTradingDashboard() {
   const [mode, setMode] = useState("reactive");
@@ -259,164 +273,269 @@ export default function SentimentTradingDashboard() {
 
       {/* Results */}
       {analysis && !loading && (
-        <div ref={resultsRef} style={styles.resultsGrid}>
-          {/* Signal Card */}
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>SIGNAL</div>
-            <div style={styles.signalContent}>
-              {mode === "reactive" ? (
-                <>
-                  <div
-                    style={{
-                      ...styles.signalBadge,
-                      background:
-                        analysis.signal?.action === "LONG"
-                          ? "#00e599"
-                          : analysis.signal?.action === "SHORT"
-                          ? "#ff3366"
-                          : "#888",
-                    }}
-                  >
-                    {analysis.signal?.action}
-                  </div>
-                  <div style={styles.signalInstrument}>
-                    {analysis.signal?.instrument}
-                  </div>
-                  <div style={styles.signalMeta}>
-                    <span>Confidence: {analysis.signal?.confidence}%</span>
-                    <span>Timeframe: {analysis.signal?.timeframe}</span>
-                  </div>
-                  <div style={styles.severityRow}>
-                    <span style={styles.severityLabel}>SEVERITY</span>
-                    <div style={styles.severityBar}>
-                      {Array.from({ length: 10 }, (_, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            ...styles.severityBlock,
-                            background:
-                              i < analysis.severity
-                                ? analysis.severity >= 8
-                                  ? "#ff3366"
-                                  : analysis.severity >= 5
-                                  ? "#ffcc00"
-                                  : "#00e599"
-                                : "rgba(255,255,255,0.06)",
-                          }}
-                        />
-                      ))}
+        <div ref={resultsRef}>
+          <div style={styles.resultsGrid}>
+            {/* Signal Card */}
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>SIGNAL</div>
+              <div style={styles.signalContent}>
+                {mode === "reactive" ? (
+                  <>
+                    <div
+                      style={{
+                        ...styles.signalBadge,
+                        background:
+                          analysis.signal?.action === "LONG"
+                            ? "#00e599"
+                            : analysis.signal?.action === "SHORT"
+                            ? "#ff3366"
+                            : "#888",
+                      }}
+                    >
+                      {analysis.signal?.action}
                     </div>
-                    <span style={styles.severityValue}>
-                      {analysis.severity}/10
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      ...styles.sentimentTag,
-                      color:
-                        analysis.sentiment === "bullish"
-                          ? "#00e599"
-                          : analysis.sentiment === "bearish"
-                          ? "#ff3366"
-                          : "#888",
-                    }}
-                  >
-                    {analysis.sentiment?.toUpperCase()}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{ ...styles.signalBadge, background: "#7b61ff" }}
-                  >
-                    {analysis.signal?.primary_trade?.slice(0, 30)}
-                  </div>
-                  <div style={styles.signalInstrument}>
-                    {analysis.signal?.instrument}
-                  </div>
-                  <div style={styles.signalMeta}>
-                    <span>Confidence: {analysis.signal?.confidence}%</span>
-                    <span>Hold: {analysis.signal?.hold_period}</span>
-                  </div>
-                  <div style={styles.severityRow}>
-                    <span style={styles.severityLabel}>CONVICTION</span>
-                    <div style={styles.severityBar}>
-                      {Array.from({ length: 10 }, (_, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            ...styles.severityBlock,
-                            background:
-                              i < analysis.conviction
-                                ? "#7b61ff"
-                                : "rgba(255,255,255,0.06)",
-                          }}
-                        />
-                      ))}
+                    <div style={styles.signalInstrument}>
+                      {analysis.signal?.instrument}
+                      {extractSymbol(analysis.signal?.instrument) && (
+                        <span style={styles.tickerLinks}>
+                          {Object.entries(tickerLinks(extractSymbol(analysis.signal.instrument))).map(
+                            ([name, url]) => (
+                              <a key={name} href={url} target="_blank" rel="noopener noreferrer" style={styles.tickerLink}>
+                                {name === "tradingview" ? "TV" : name === "yahoo" ? "Yahoo" : "Finviz"}
+                              </a>
+                            )
+                          )}
+                        </span>
+                      )}
                     </div>
-                    <span style={styles.severityValue}>
-                      {analysis.conviction}/10
-                    </span>
-                  </div>
-                  <div style={{ ...styles.sentimentTag, color: "#7b61ff" }}>
-                    {analysis.policy_direction?.toUpperCase()}
-                  </div>
-                </>
-              )}
+                    <div style={styles.signalMeta}>
+                      <span>Confidence: {analysis.signal?.confidence}%</span>
+                      <span>Timeframe: {analysis.signal?.timeframe}</span>
+                    </div>
+                    <div style={styles.severityRow}>
+                      <span style={styles.severityLabel}>SEVERITY</span>
+                      <div style={styles.severityBar}>
+                        {Array.from({ length: 10 }, (_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              ...styles.severityBlock,
+                              background:
+                                i < analysis.severity
+                                  ? analysis.severity >= 8
+                                    ? "#ff3366"
+                                    : analysis.severity >= 5
+                                    ? "#ffcc00"
+                                    : "#00e599"
+                                  : "rgba(255,255,255,0.06)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span style={styles.severityValue}>
+                        {analysis.severity}/10
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        ...styles.sentimentTag,
+                        color:
+                          analysis.sentiment === "bullish"
+                            ? "#00e599"
+                            : analysis.sentiment === "bearish"
+                            ? "#ff3366"
+                            : "#888",
+                      }}
+                    >
+                      {analysis.sentiment?.toUpperCase()}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      style={{ ...styles.signalBadge, background: "#7b61ff" }}
+                    >
+                      {analysis.signal?.primary_trade?.slice(0, 30)}
+                    </div>
+                    <div style={styles.signalInstrument}>
+                      {analysis.signal?.instrument}
+                      {extractSymbol(analysis.signal?.instrument) && (
+                        <span style={styles.tickerLinks}>
+                          {Object.entries(tickerLinks(extractSymbol(analysis.signal.instrument))).map(
+                            ([name, url]) => (
+                              <a key={name} href={url} target="_blank" rel="noopener noreferrer" style={styles.tickerLink}>
+                                {name === "tradingview" ? "TV" : name === "yahoo" ? "Yahoo" : "Finviz"}
+                              </a>
+                            )
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    <div style={styles.signalMeta}>
+                      <span>Confidence: {analysis.signal?.confidence}%</span>
+                      <span>Hold: {analysis.signal?.hold_period}</span>
+                    </div>
+                    <div style={styles.severityRow}>
+                      <span style={styles.severityLabel}>CONVICTION</span>
+                      <div style={styles.severityBar}>
+                        {Array.from({ length: 10 }, (_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              ...styles.severityBlock,
+                              background:
+                                i < analysis.conviction
+                                  ? "#7b61ff"
+                                  : "rgba(255,255,255,0.06)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span style={styles.severityValue}>
+                        {analysis.conviction}/10
+                      </span>
+                    </div>
+                    <div style={{ ...styles.sentimentTag, color: "#7b61ff" }}>
+                      {analysis.policy_direction?.toUpperCase()}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Sector Impact */}
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>SECTOR IMPACT</div>
-            <div style={styles.sectorList}>
-              {analysis.sectors?.map((s, i) => (
-                <div key={i} style={styles.sectorRow}>
-                  <div
-                    style={{
-                      ...styles.sectorDot,
-                      background: getSectorColor(s.name),
-                    }}
-                  />
-                  <span style={styles.sectorName}>{s.name}</span>
-                  <span
-                    style={{
-                      ...styles.sectorImpact,
-                      color:
-                        (s.impact || s.positioning) === "positive" ||
-                        s.positioning === "overweight"
-                          ? "#00e599"
-                          : (s.impact || s.positioning) === "negative" ||
-                            s.positioning === "underweight"
-                          ? "#ff3366"
-                          : "#888",
-                    }}
-                  >
-                    {mode === "reactive"
-                      ? `${s.impact?.toUpperCase()} (${s.magnitude}/10)`
-                      : `${s.positioning?.toUpperCase()}`}
-                  </span>
-                  {mode === "policy" && s.thesis && (
-                    <span style={styles.sectorThesis}>{s.thesis}</span>
-                  )}
+            {/* Sector Impact */}
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>SECTOR IMPACT</div>
+              <div style={styles.sectorList}>
+                {analysis.sectors?.map((s, i) => (
+                  <div key={i} style={styles.sectorRow}>
+                    <div
+                      style={{
+                        ...styles.sectorDot,
+                        background: getSectorColor(s.name),
+                      }}
+                    />
+                    <span style={styles.sectorName}>{s.name}</span>
+                    <span
+                      style={{
+                        ...styles.sectorImpact,
+                        color:
+                          (s.impact || s.positioning) === "positive" ||
+                          s.positioning === "overweight"
+                            ? "#00e599"
+                            : (s.impact || s.positioning) === "negative" ||
+                              s.positioning === "underweight"
+                            ? "#ff3366"
+                            : "#888",
+                      }}
+                    >
+                      {mode === "reactive"
+                        ? `${s.impact?.toUpperCase()} (${s.magnitude}/10)`
+                        : `${s.positioning?.toUpperCase()}`}
+                    </span>
+                    {mode === "policy" && s.thesis && (
+                      <span style={styles.sectorThesis}>{s.thesis}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tickers */}
+            {analysis.tickers?.length > 0 && (
+              <div style={styles.card}>
+                <div style={styles.cardHeader}>RELATED TICKERS</div>
+                <div style={styles.tickerList}>
+                  {analysis.tickers.map((t, i) => (
+                    <div key={i} style={styles.tickerRow}>
+                      <div style={styles.tickerRowTop}>
+                        <span
+                          style={{
+                            ...styles.tickerSymbol,
+                            color:
+                              t.direction === "long" || t.direction === "overweight"
+                                ? "#00e599"
+                                : t.direction === "short" || t.direction === "underweight"
+                                ? "#ff3366"
+                                : "#ffcc00",
+                          }}
+                        >
+                          {t.symbol}
+                        </span>
+                        <span style={styles.tickerName}>{t.name}</span>
+                        <span
+                          style={{
+                            ...styles.tickerDirection,
+                            color:
+                              t.direction === "long" || t.direction === "overweight"
+                                ? "#00e599"
+                                : t.direction === "short" || t.direction === "underweight"
+                                ? "#ff3366"
+                                : "#ffcc00",
+                          }}
+                        >
+                          {t.direction?.toUpperCase()}
+                        </span>
+                      </div>
+                      <div style={styles.tickerNote}>{t.note}</div>
+                      <div style={styles.tickerRowLinks}>
+                        {Object.entries(tickerLinks(t.symbol)).map(([name, url]) => (
+                          <a key={name} href={url} target="_blank" rel="noopener noreferrer" style={styles.tickerLink}>
+                            {name === "tradingview" ? "TradingView" : name === "yahoo" ? "Yahoo Finance" : "Finviz"}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Technical Context */}
+            {analysis.technical_context && (
+              <div style={styles.card}>
+                <div style={styles.cardHeader}>TECHNICAL CONTEXT</div>
+                <div style={styles.techList}>
+                  <div style={styles.techItem}>
+                    <span style={styles.techLabel}>KEY LEVELS</span>
+                    <span style={styles.techValue}>{analysis.technical_context.key_levels}</span>
+                  </div>
+                  <div style={styles.techItem}>
+                    <span style={styles.techLabel}>INDICATORS</span>
+                    <span style={styles.techValue}>{analysis.technical_context.indicators_to_watch}</span>
+                  </div>
+                  <div style={styles.techItem}>
+                    <span style={styles.techLabel}>ENTRY TRIGGER</span>
+                    <span style={styles.techValue}>{analysis.technical_context.entry_trigger}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rationale */}
+            <div style={{ ...styles.card, gridColumn: "1 / -1" }}>
+              <div style={styles.cardHeader}>
+                {mode === "reactive" ? "TRADE RATIONALE" : "MACRO VIEW"}
+              </div>
+              <p style={styles.rationale}>
+                {mode === "reactive" ? analysis.rationale : analysis.macro_view}
+              </p>
+              <div style={styles.riskBox}>
+                <span style={styles.riskLabel}>KEY RISK</span>
+                <span style={styles.riskText}>{analysis.risks}</span>
+              </div>
             </div>
           </div>
 
-          {/* Rationale */}
-          <div style={{ ...styles.card, gridColumn: "1 / -1" }}>
-            <div style={styles.cardHeader}>
-              {mode === "reactive" ? "TRADE RATIONALE" : "MACRO VIEW"}
+          {/* TradingView Chart */}
+          {extractSymbol(analysis.signal?.instrument) && (
+            <div style={styles.chartSection}>
+              <div style={styles.cardHeader}>
+                CHART — {extractSymbol(analysis.signal.instrument)}
+              </div>
+              <TradingViewChart symbol={extractSymbol(analysis.signal.instrument)} />
             </div>
-            <p style={styles.rationale}>
-              {mode === "reactive" ? analysis.rationale : analysis.macro_view}
-            </p>
-            <div style={styles.riskBox}>
-              <span style={styles.riskLabel}>KEY RISK</span>
-              <span style={styles.riskText}>{analysis.risks}</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -936,6 +1055,89 @@ const styles = {
     padding: "28px",
     lineHeight: 1.6,
     letterSpacing: "0.5px",
+  },
+  tickerLinks: {
+    display: "inline-flex",
+    gap: "8px",
+    marginLeft: "12px",
+    verticalAlign: "middle",
+  },
+  tickerLink: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1px",
+    color: "#00d4ff",
+    textDecoration: "none",
+    padding: "2px 6px",
+    border: "1px solid rgba(0,212,255,0.2)",
+    borderRadius: "2px",
+    transition: "all 0.15s",
+  },
+  tickerList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+  },
+  tickerRow: {
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.015)",
+    border: "1px solid rgba(255,255,255,0.04)",
+    borderRadius: "3px",
+  },
+  tickerRowTop: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "6px",
+  },
+  tickerSymbol: {
+    fontSize: "14px",
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+  },
+  tickerName: {
+    fontSize: "11px",
+    color: "#889",
+    flex: 1,
+  },
+  tickerDirection: {
+    fontSize: "10px",
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+  },
+  tickerNote: {
+    fontSize: "10px",
+    color: "#667",
+    lineHeight: 1.5,
+    marginBottom: "8px",
+  },
+  tickerRowLinks: {
+    display: "flex",
+    gap: "6px",
+  },
+  techList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
+  },
+  techItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  techLabel: {
+    fontSize: "9px",
+    letterSpacing: "1.5px",
+    color: "#556",
+    fontWeight: 600,
+  },
+  techValue: {
+    fontSize: "11px",
+    color: "#aab",
+    lineHeight: 1.6,
+  },
+  chartSection: {
+    padding: "0 28px 24px",
   },
   newsSection: {
     padding: "24px 28px",
