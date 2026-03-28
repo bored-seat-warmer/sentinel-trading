@@ -26,6 +26,10 @@ export default async function handler(req, res) {
       return parsed.items.map((item) => ({
         title: item.title?.trim() || "",
         link: item.link || "",
+        description: (item.contentSnippet || item.content || item.summary || "")
+          .replace(/<[^>]*>/g, "")
+          .trim()
+          .slice(0, 500),
         pubDate: item.pubDate || item.isoDate || "",
         source: feed.source,
         category: feed.category,

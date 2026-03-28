@@ -164,8 +164,11 @@ export default function SentimentTradingDashboard() {
     analyzeHeadline(headline);
   };
 
-  const analyzeText = (text) => {
-    setHeadline(text);
+  const analyzeArticle = (title, description) => {
+    setHeadline(title);
+    const text = description
+      ? `${title}\n\n${description}`
+      : title;
     analyzeHeadline(text);
   };
 
@@ -662,25 +665,39 @@ export default function SentimentTradingDashboard() {
         )}
         <div style={styles.newsList}>
           {filteredNews.map((article, i) => (
-            <button
-              key={i}
-              onClick={() => analyzeText(article.title)}
-              style={styles.newsItem}
-            >
-              <div style={styles.newsItemTop}>
-                <span style={styles.newsSource}>{article.source}</span>
-                <span style={styles.newsCategory}>{article.category}</span>
-                <span style={styles.newsTime}>
-                  {article.pubDate
-                    ? new Date(article.pubDate).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
-                </span>
+            <div key={i} style={styles.newsItem}>
+              <div
+                style={styles.newsClickable}
+                onClick={() => analyzeArticle(article.title, article.description)}
+                role="button"
+                tabIndex={0}
+              >
+                <div style={styles.newsItemTop}>
+                  <span style={styles.newsSource}>{article.source}</span>
+                  <span style={styles.newsCategory}>{article.category}</span>
+                  <span style={styles.newsTime}>
+                    {article.pubDate
+                      ? new Date(article.pubDate).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </span>
+                </div>
+                <div style={styles.newsTitle}>{article.title}</div>
               </div>
-              <div style={styles.newsTitle}>{article.title}</div>
-            </button>
+              {article.link && (
+                <a
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.articleLink}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  READ ARTICLE
+                </a>
+              )}
+            </div>
           ))}
         </div>
       </div>
@@ -1275,16 +1292,32 @@ const styles = {
   },
   newsItem: {
     fontFamily: "'JetBrains Mono', monospace",
-    display: "block",
-    width: "100%",
+    display: "flex",
+    flexDirection: "column",
     textAlign: "left",
     padding: "10px 12px",
     background: "rgba(255,255,255,0.015)",
     border: "1px solid rgba(255,255,255,0.04)",
     borderRadius: "3px",
-    cursor: "pointer",
     transition: "all 0.15s",
     color: "inherit",
+  },
+  newsClickable: {
+    cursor: "pointer",
+    flex: 1,
+  },
+  articleLink: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1px",
+    color: "#00d4ff",
+    textDecoration: "none",
+    marginTop: "8px",
+    alignSelf: "flex-start",
+    padding: "2px 6px",
+    border: "1px solid rgba(0,212,255,0.15)",
+    borderRadius: "2px",
+    transition: "all 0.15s",
   },
   newsItemTop: {
     display: "flex",
