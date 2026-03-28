@@ -52,6 +52,22 @@ const extractSymbol = (instrument) => {
   return match ? match[1] : null;
 };
 
+const PriceTag = ({ symbol, prices: p }) => {
+  const data = p[symbol?.toUpperCase()];
+  if (!data) return null;
+  const isUp = data.change >= 0;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginLeft: "8px" }}>
+      <span style={{ fontSize: "12px", color: "#e0e4ea", fontWeight: 500 }}>
+        ${data.price.toLocaleString()}
+      </span>
+      <span style={{ fontSize: "10px", color: isUp ? "#00e599" : "#ff3366", fontWeight: 600 }}>
+        {isUp ? "+" : ""}{data.change} ({isUp ? "+" : ""}{data.changePercent}%)
+      </span>
+    </span>
+  );
+};
+
 const tickerLinks = (symbol) => ({
   tradingview: `https://www.tradingview.com/chart/?symbol=${symbol}`,
   yahoo: `https://finance.yahoo.com/quote/${symbol}`,
@@ -76,6 +92,7 @@ export default function SentimentTradingDashboard() {
   const [alerts, setAlerts] = useState([]);
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [batchAnalysis, setBatchAnalysis] = useState(null);
+  const [prices, setPrices] = useState({});
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress", "Crypto"];
@@ -120,6 +137,26 @@ export default function SentimentTradingDashboard() {
     return () => clearInterval(interval);
   }, [fetchNews]);
 
+  const fetchPrices = useCallback(async (analysisData) => {
+    const symbols = new Set();
+    // Primary instrument
+    const primary = extractSymbol(analysisData.signal?.instrument || analysisData.overall_signal?.instrument);
+    if (primary) symbols.add(primary);
+    // Tickers array
+    analysisData.tickers?.forEach((t) => { if (t.symbol) symbols.add(t.symbol); });
+    // Crypto assets
+    analysisData.crypto_impact?.assets?.forEach((a) => { if (a.symbol) symbols.add(a.symbol); });
+
+    if (symbols.size === 0) return;
+
+    try {
+      const res = await fetch(`/api/prices?symbols=${[...symbols].join(",")}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPrices((prev) => ({ ...prev, ...data.prices }));
+    } catch {}
+  }, []);
+
   const analyzeHeadline = useCallback(
     async (text) => {
       if (!text.trim()) return;
@@ -148,6 +185,8 @@ export default function SentimentTradingDashboard() {
 
         const parsed = JSON.parse(raw);
         setAnalysis(parsed);
+        setBatchAnalysis(null);
+        fetchPrices(parsed);
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 
         // Check for high-severity alert
@@ -263,6 +302,8 @@ export default function SentimentTradingDashboard() {
 
       const parsed = JSON.parse(raw);
       setBatchAnalysis(parsed);
+      setAnalysis(null);
+      fetchPrices(parsed);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       setSelectedArticles(new Set());
     } catch (err) {
@@ -460,6 +501,7 @@ export default function SentimentTradingDashboard() {
                     </div>
                     <div style={styles.signalInstrument}>
                       {analysis.signal?.instrument}
+                      <PriceTag symbol={extractSymbol(analysis.signal?.instrument)} prices={prices} />
                       {extractSymbol(analysis.signal?.instrument) && (
                         <span style={styles.tickerLinks}>
                           {Object.entries(tickerLinks(extractSymbol(analysis.signal.instrument))).map(
@@ -523,6 +565,7 @@ export default function SentimentTradingDashboard() {
                     </div>
                     <div style={styles.signalInstrument}>
                       {analysis.signal?.instrument}
+                      <PriceTag symbol={extractSymbol(analysis.signal?.instrument)} prices={prices} />
                       {extractSymbol(analysis.signal?.instrument) && (
                         <span style={styles.tickerLinks}>
                           {Object.entries(tickerLinks(extractSymbol(analysis.signal.instrument))).map(
@@ -626,6 +669,7 @@ export default function SentimentTradingDashboard() {
                         >
                           {t.symbol}
                         </span>
+                        <PriceTag symbol={t.symbol} prices={prices} />
                         <span style={styles.tickerName}>{t.name}</span>
                         <span
                           style={{
@@ -697,6 +741,7 @@ export default function SentimentTradingDashboard() {
                           }}
                         />
                         <span style={styles.sectorName}>{a.symbol}</span>
+                        <PriceTag symbol={a.symbol} prices={prices} />
                         <span
                           style={{
                             ...styles.sectorImpact,
@@ -814,6 +859,7 @@ export default function SentimentTradingDashboard() {
                 </div>
                 <div style={styles.signalInstrument}>
                   {batchAnalysis.overall_signal?.instrument}
+                  <PriceTag symbol={extractSymbol(batchAnalysis.overall_signal?.instrument)} prices={prices} />
                   {extractSymbol(batchAnalysis.overall_signal?.instrument) && (
                     <span style={styles.tickerLinks}>
                       {Object.entries(tickerLinks(extractSymbol(batchAnalysis.overall_signal.instrument))).map(
@@ -961,6 +1007,7 @@ export default function SentimentTradingDashboard() {
                           }}
                         />
                         <span style={styles.sectorName}>{a.symbol}</span>
+                        <PriceTag symbol={a.symbol} prices={prices} />
                         <span
                           style={{
                             ...styles.sectorImpact,
@@ -999,6 +1046,7 @@ export default function SentimentTradingDashboard() {
                         >
                           {t.symbol}
                         </span>
+                        <PriceTag symbol={t.symbol} prices={prices} />
                         <span style={styles.tickerName}>{t.name}</span>
                         <span
                           style={{
