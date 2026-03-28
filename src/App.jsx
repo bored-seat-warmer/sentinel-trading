@@ -36,6 +36,28 @@ const SECTOR_COLORS = {
 
 const getSectorColor = (sector) => SECTOR_COLORS[sector] || "#888";
 
+const HISTORY_KEY = "atlas-alpha-history";
+const MAX_HISTORY = 50;
+
+const loadHistory = () => {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const items = JSON.parse(raw);
+    return items.map((h) => ({ ...h, timestamp: new Date(h.timestamp) }));
+  } catch {
+    return [];
+  }
+};
+
+const saveHistory = (items) => {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, MAX_HISTORY)));
+  } catch {
+    // Storage full or unavailable — silently degrade
+  }
+};
+
 const extractSymbol = (instrument) => {
   if (!instrument) return null;
   // Match standalone uppercase ticker patterns like "SOXX", "SPY", "XLF"
@@ -54,7 +76,7 @@ export default function SentimentTradingDashboard() {
   const [headline, setHeadline] = useState("");
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => loadHistory());
   const [error, setError] = useState(null);
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -134,10 +156,14 @@ export default function SentimentTradingDashboard() {
         const parsed = JSON.parse(raw);
         setAnalysis(parsed);
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-        setHistory((prev) => [
-          { text, mode, analysis: parsed, timestamp: new Date() },
-          ...prev.slice(0, 9),
-        ]);
+        setHistory((prev) => {
+          const next = [
+            { text, mode, analysis: parsed, timestamp: new Date() },
+            ...prev.slice(0, MAX_HISTORY - 1),
+          ];
+          saveHistory(next);
+          return next;
+        });
       } catch (err) {
         console.error(err);
         setError(err.message || "Analysis failed — check the console for details.");
@@ -552,7 +578,18 @@ export default function SentimentTradingDashboard() {
       {/* History */}
       {history.length > 0 && (
         <div style={styles.historySection}>
-          <div style={styles.cardHeader}>ANALYSIS HISTORY</div>
+          <div style={styles.historyHeader}>
+            <span style={styles.cardHeader}>ANALYSIS HISTORY ({history.length})</span>
+            <button
+              onClick={() => {
+                setHistory([]);
+                saveHistory([]);
+              }}
+              style={styles.clearBtn}
+            >
+              CLEAR
+            </button>
+          </div>
           <div style={styles.historyList}>
             {history.map((h, i) => (
               <div key={i} style={styles.historyItem}>
@@ -1021,6 +1058,25 @@ const styles = {
     padding: "24px 28px",
     borderTop: "1px solid rgba(255,255,255,0.06)",
     marginTop: "8px",
+  },
+  historyHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px",
+  },
+  clearBtn: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1.5px",
+    fontWeight: 600,
+    padding: "4px 12px",
+    background: "transparent",
+    border: "1px solid rgba(255,51,102,0.2)",
+    color: "#ff3366",
+    cursor: "pointer",
+    borderRadius: "2px",
+    transition: "all 0.2s",
   },
   historyList: {
     display: "flex",
