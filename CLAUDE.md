@@ -4,38 +4,63 @@
 An AI-powered trading dashboard that analyzes political news and policy developments for market impact. Educational/prototype stage — not live trading yet.
 
 ## Two Operating Modes
-- **Mode 1 (Reactive News):** Real-time headline analysis. Scores sentiment, severity, sector impact, and generates immediate trade signals (LONG/SHORT/HOLD) with specific instruments and timeframes.
-- **Mode 2 (Policy Mapping):** Thesis-driven analysis of broader policy trends. Maps policy direction to sector positioning (overweight/underweight) over weeks/months.
+- **Mode 1 (Reactive News):** Real-time headline analysis. Scores sentiment, severity, sector impact, and generates immediate trade signals (LONG/SHORT/HOLD) with specific instruments and timeframes. Includes technical context (key levels, indicators, entry triggers) and related tickers with deep-links.
+- **Mode 2 (Policy Mapping):** Thesis-driven analysis of broader policy trends. Maps policy direction to sector positioning (overweight/underweight) over weeks/months with technical context and related tickers.
 
 ## Architecture
 - **Frontend:** React (Vite), single-page dashboard
-- **Backend:** Vercel serverless function at `/api/analyze` proxying Anthropic API calls
-- **AI:** Claude Sonnet via Anthropic Messages API — system prompts return structured JSON for each mode
-- **Deploy target:** Vercel
+- **Backend:** Vercel serverless functions:
+  - `/api/analyze` — proxies Anthropic API calls with server-side API key
+  - `/api/news` — fetches and merges RSS feeds from CNBC and Politico
+- **AI:** Claude Sonnet 4 via Anthropic Messages API — system prompts return structured JSON for each mode, with consistency rules to prevent contradictory signals
+- **Charts:** TradingView mini symbol overview widget, auto-loaded for the primary instrument
+- **History:** localStorage (up to 50 entries), abstracted behind `loadHistory`/`saveHistory` for easy swap to Vercel KV
+- **Deploy target:** Vercel via GitHub (repo: `atlas-alpha`)
 
 ## Key Principles
 - API keys must NEVER be in frontend code — all AI calls go through the serverless proxy
 - The AI returns structured JSON (no markdown, no backticks) that the frontend parses and renders
-- Two different system prompts depending on mode (reactive vs policy) — see the component for exact prompts
-- Every analysis gets logged in a client-side history feed
+- AI prompts enforce signal/sentiment/sector consistency (e.g., bearish + negative sector = SHORT, not LONG)
+- Two different system prompts depending on mode (reactive vs policy) — see `api/analyze.js` for exact prompts
+- Every analysis gets logged in persistent client-side history
+
+## Live News Feed
+- Pulls from 5 RSS feeds: CNBC (Politics, Economy), Politico (Politics, Congress, Economy)
+- Category filter toggles (Politics / Economy / Congress)
+- Auto-refreshes every 5 minutes with last-updated timestamp
+- Clicking any headline auto-runs it through the analyzer
+- 5-minute server-side cache via `Cache-Control` header
+- Uses `rss-parser` npm package in the serverless function
+
+## Analysis Results Include
+- Signal card (action, instrument with TV/Yahoo/Finviz links, confidence, timeframe, severity bar, sentiment)
+- Sector impact breakdown with color-coded impact/magnitude
+- Related tickers with per-ticker direction, reasoning, and deep-links
+- Technical context: key support/resistance levels, indicators to watch, entry triggers
+- TradingView embedded chart for the primary instrument
+- Trade rationale / macro view with key risk callout
 
 ## Tech Stack
 - React 18+ with hooks (no class components)
-- Vite for dev/build
+- Vite 6 for dev/build
 - Vercel for hosting + serverless functions
-- Anthropic SDK or fetch to api.anthropic.com/v1/messages
-- No component library — custom styled components
+- Anthropic Messages API (Claude Sonnet 4)
+- `rss-parser` for RSS feed ingestion
+- TradingView embeddable widgets
+- localStorage for history persistence
+- No component library — custom inline styles
 
 ## Environment Variables
 - `ANTHROPIC_API_KEY` — required, set in Vercel dashboard and local `.env`
 
 ## Future Roadmap (in priority order)
-1. Real news feed integration (NewsAPI, Benzinga, or RSS)
-2. Persistent analysis history (database instead of in-memory)
-3. Scheduled background polling for news
-4. Alerts/notifications for high-severity signals
-5. Backtesting framework to validate signals against historical price data
-6. Paper trading integration with Alpaca API
+1. ~~Real news feed integration~~ — DONE (RSS from CNBC + Politico)
+2. ~~Persistent analysis history~~ — DONE (localStorage, swap-ready for Vercel KV)
+3. Upgrade history to Vercel KV for cross-device persistence
+4. Scheduled background polling for news
+5. Alerts/notifications for high-severity signals
+6. Backtesting framework to validate signals against historical price data
+7. Paper trading integration with Alpaca API
 
 ## Style
 - Dark, terminal-inspired aesthetic (JetBrains Mono font)
