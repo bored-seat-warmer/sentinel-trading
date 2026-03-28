@@ -1046,65 +1046,6 @@ export default function SentimentTradingDashboard() {
         </div>
       )}
 
-      {/* History */}
-      {history.length > 0 && (
-        <div style={styles.historySection}>
-          <div style={styles.historyHeader}>
-            <span style={styles.cardHeader}>ANALYSIS HISTORY ({history.length})</span>
-            <button
-              onClick={() => {
-                setHistory([]);
-                saveHistory([]);
-              }}
-              style={styles.clearBtn}
-            >
-              CLEAR
-            </button>
-          </div>
-          <div style={styles.historyList}>
-            {history.map((h, i) => (
-              <div key={i} style={styles.historyItem}>
-                <div style={styles.historyMeta}>
-                  <span
-                    style={{
-                      ...styles.historyMode,
-                      color: h.mode === "reactive" ? "#00d4ff" : "#7b61ff",
-                    }}
-                  >
-                    {h.mode === "reactive" ? "REACTIVE" : "POLICY"}
-                  </span>
-                  <span style={styles.historyTime}>
-                    {h.timestamp.toLocaleTimeString()}
-                  </span>
-                </div>
-                <div style={styles.historyText}>{h.text.slice(0, 90)}...</div>
-                <div style={styles.historySignal}>
-                  {h.mode === "reactive" ? (
-                    <span
-                      style={{
-                        color:
-                          h.analysis.signal?.action === "LONG"
-                            ? "#00e599"
-                            : h.analysis.signal?.action === "SHORT"
-                            ? "#ff3366"
-                            : "#888",
-                      }}
-                    >
-                      {h.analysis.signal?.action} →{" "}
-                      {h.analysis.signal?.instrument}
-                    </span>
-                  ) : (
-                    <span style={{ color: "#7b61ff" }}>
-                      {h.analysis.signal?.instrument}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Live News Feed */}
       <div style={styles.newsSection}>
         <div style={styles.newsHeader}>
@@ -1239,6 +1180,65 @@ export default function SentimentTradingDashboard() {
           ))}
         </div>
       </div>
+
+      {/* History */}
+      {history.length > 0 && (
+        <div style={styles.historySection}>
+          <div style={styles.historyHeader}>
+            <span style={styles.cardHeader}>ANALYSIS HISTORY ({history.length})</span>
+            <button
+              onClick={() => {
+                setHistory([]);
+                saveHistory([]);
+              }}
+              style={styles.clearBtn}
+            >
+              CLEAR
+            </button>
+          </div>
+          <div style={styles.historyList}>
+            {history.map((h, i) => (
+              <div key={i} style={styles.historyItem}>
+                <div style={styles.historyMeta}>
+                  <span
+                    style={{
+                      ...styles.historyMode,
+                      color: h.mode === "reactive" ? "#00d4ff" : "#7b61ff",
+                    }}
+                  >
+                    {h.mode === "reactive" ? "REACTIVE" : "POLICY"}
+                  </span>
+                  <span style={styles.historyTime}>
+                    {h.timestamp.toLocaleTimeString()}
+                  </span>
+                </div>
+                <div style={styles.historyText}>{h.text.slice(0, 90)}...</div>
+                <div style={styles.historySignal}>
+                  {h.mode === "reactive" ? (
+                    <span
+                      style={{
+                        color:
+                          h.analysis.signal?.action === "LONG"
+                            ? "#00e599"
+                            : h.analysis.signal?.action === "SHORT"
+                            ? "#ff3366"
+                            : "#888",
+                      }}
+                    >
+                      {h.analysis.signal?.action} →{" "}
+                      {h.analysis.signal?.instrument}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#7b61ff" }}>
+                      {h.analysis.signal?.instrument}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Disclaimer */}
       <footer style={styles.footer}>
