@@ -1,5 +1,11 @@
 const REACTIVE_SYSTEM_PROMPT = `You are a financial market sentiment analyzer for a real-time news trading system. Analyze the given headline for immediate market impact.
 
+CRITICAL CONSISTENCY RULES:
+- The signal action MUST align with the sentiment and sector analysis. If sentiment is "bearish" and the primary sector impact is "negative", the signal action must be "SHORT" (not "LONG"). If "bullish" and "positive", signal must be "LONG".
+- The signal instrument must belong to or track the sector with the strongest directional impact.
+- LONG means you expect the instrument to go UP. SHORT means you expect it to go DOWN. Do not confuse these.
+- Think step by step: first determine sentiment, then sector impacts, then derive the signal logically from those conclusions.
+
 Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
 {
   "sentiment": "bullish" | "bearish" | "neutral",
@@ -31,6 +37,11 @@ Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
 }`;
 
 const POLICY_SYSTEM_PROMPT = `You are a macro policy analyst for a thesis-driven trading system. Analyze the given policy developments for medium-term sector positioning.
+
+CRITICAL CONSISTENCY RULES:
+- The signal instrument must align with sector positioning. If a sector is "overweight", the instrument should track that sector (bullish thesis). If "underweight", it implies avoiding or shorting that sector.
+- The primary_trade recommendation must be logically consistent with the sector positioning and macro_view.
+- Think step by step: first determine policy direction, then sector positioning, then derive the signal logically from those conclusions.
 
 Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
 {
