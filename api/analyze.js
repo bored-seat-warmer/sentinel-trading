@@ -171,7 +171,13 @@ export default async function handler(req, res) {
   // Fetch live benchmark prices to give Claude current market context
   let priceContext = "";
   try {
-    const benchmarks = ["SPY", "QQQ", "BTC-USD", "ETH-USD", "DXY"];
+    const benchmarks = [
+      "SPY", "QQQ", "IWM", "DIA",          // broad market
+      "XLE", "XLF", "XLK", "XLV", "XLI",   // sector ETFs
+      "SOXX", "GLD", "TLT", "UNG",          // semis, gold, bonds, natgas
+      "BTC-USD", "ETH-USD", "SOL-USD",      // crypto
+      "DX-Y.NYB",                            // dollar index
+    ];
     const quotes = await Promise.allSettled(
       benchmarks.map(async (sym) => {
         const r = await fetch(
@@ -182,7 +188,8 @@ export default async function handler(req, res) {
         const d = await r.json();
         const meta = d.chart?.result?.[0]?.meta;
         if (!meta) return null;
-        return `${sym.replace("-USD", "")}: $${meta.regularMarketPrice.toLocaleString()}`;
+        const label = sym.replace("-USD", "").replace("DX-Y.NYB", "DXY");
+        return `${label}: $${meta.regularMarketPrice.toLocaleString()}`;
       })
     );
     const lines = quotes
