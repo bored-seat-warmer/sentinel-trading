@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #0a0c10;
+}
+
+@keyframes scanline {
+  0% { top: -100%; }
+  100% { top: 100%; }
+}
+
+@keyframes fillBar {
+  0% { width: 5%; }
+  50% { width: 70%; }
+  90% { width: 90%; }
+  100% { width: 95%; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #00d4ff !important;
+  box-shadow: 0 0 0 1px #00d4ff44;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
