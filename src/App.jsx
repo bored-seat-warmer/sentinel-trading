@@ -165,10 +165,10 @@ export default function SentimentTradingDashboard() {
   };
 
   const analyzeArticle = (title, description) => {
-    setHeadline(title);
     const text = description
       ? `${title}\n\n${description}`
       : title;
+    setHeadline(text);
     analyzeHeadline(text);
   };
 
