@@ -72,6 +72,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
+        // Fallback: if your plan doesn't have Sonnet 4, try "claude-3-5-sonnet-20241022"
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: "user", content: text.trim() }],
@@ -81,7 +82,10 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorBody = await response.text();
       console.error("Anthropic API error:", response.status, errorBody);
-      return res.status(502).json({ error: "Upstream API error" });
+      return res.status(502).json({
+        error: `Anthropic API error (${response.status})`,
+        detail: errorBody,
+      });
     }
 
     const data = await response.json();

@@ -59,7 +59,7 @@ export default function SentimentTradingDashboard() {
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || `Request failed (${response.status})`);
+          throw new Error(err.detail || err.error || `Request failed (${response.status})`);
         }
 
         const data = await response.json();
