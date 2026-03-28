@@ -45,7 +45,28 @@ export default function SentimentTradingDashboard() {
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState(null);
+  const [activeCategories, setActiveCategories] = useState(
+    new Set(["Politics", "Economy", "Congress"])
+  );
+  const [lastRefresh, setLastRefresh] = useState(null);
   const resultsRef = useRef(null);
+
+  const NEWS_CATEGORIES = ["Politics", "Economy", "Congress"];
+  const AUTO_REFRESH_MS = 5 * 60 * 1000;
+
+  const toggleCategory = (cat) => {
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) {
+        if (next.size > 1) next.delete(cat);
+      } else {
+        next.add(cat);
+      }
+      return next;
+    });
+  };
+
+  const filteredNews = news.filter((a) => activeCategories.has(a.category));
 
   const fetchNews = useCallback(async () => {
     setNewsLoading(true);
@@ -55,6 +76,7 @@ export default function SentimentTradingDashboard() {
       if (!res.ok) throw new Error("Failed to fetch news");
       const data = await res.json();
       setNews(data.articles || []);
+      setLastRefresh(new Date());
     } catch (err) {
       console.error(err);
       setNewsError("Could not load news feed.");
@@ -65,6 +87,8 @@ export default function SentimentTradingDashboard() {
 
   useEffect(() => {
     fetchNews();
+    const interval = setInterval(fetchNews, AUTO_REFRESH_MS);
+    return () => clearInterval(interval);
   }, [fetchNews]);
 
   const analyzeHeadline = useCallback(
@@ -448,20 +472,44 @@ export default function SentimentTradingDashboard() {
       <div style={styles.newsSection}>
         <div style={styles.newsHeader}>
           <span style={styles.cardHeader}>LIVE NEWS FEED</span>
-          <button
-            onClick={fetchNews}
-            disabled={newsLoading}
-            style={styles.refreshBtn}
-          >
-            {newsLoading ? "REFRESHING..." : "REFRESH"}
-          </button>
+          <div style={styles.newsControls}>
+            {lastRefresh && (
+              <span style={styles.lastRefresh}>
+                Updated {lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <button
+              onClick={fetchNews}
+              disabled={newsLoading}
+              style={styles.refreshBtn}
+            >
+              {newsLoading ? "REFRESHING..." : "REFRESH"}
+            </button>
+          </div>
+        </div>
+        <div style={styles.filterBar}>
+          {NEWS_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => toggleCategory(cat)}
+              style={{
+                ...styles.filterBtn,
+                ...(activeCategories.has(cat) ? styles.filterBtnActive : {}),
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+          <span style={styles.filterCount}>
+            {filteredNews.length} article{filteredNews.length !== 1 ? "s" : ""}
+          </span>
         </div>
         {newsError && <div style={styles.newsError}>{newsError}</div>}
         {newsLoading && news.length === 0 && (
           <div style={styles.newsLoadingText}>Loading headlines...</div>
         )}
         <div style={styles.newsList}>
-          {news.map((article, i) => (
+          {filteredNews.map((article, i) => (
             <button
               key={i}
               onClick={() => loadSample(article.title)}
@@ -898,6 +946,45 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "12px",
+  },
+  newsControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  lastRefresh: {
+    fontSize: "9px",
+    color: "#445",
+    letterSpacing: "1px",
+  },
+  filterBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    marginBottom: "14px",
+  },
+  filterBtn: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "10px",
+    letterSpacing: "1px",
+    padding: "5px 12px",
+    background: "transparent",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "#556",
+    cursor: "pointer",
+    borderRadius: "2px",
+    transition: "all 0.2s",
+  },
+  filterBtnActive: {
+    color: "#00d4ff",
+    borderColor: "#00d4ff44",
+    background: "rgba(0,212,255,0.06)",
+  },
+  filterCount: {
+    fontSize: "9px",
+    color: "#445",
+    letterSpacing: "1px",
+    marginLeft: "8px",
   },
   refreshBtn: {
     fontFamily: "'JetBrains Mono', monospace",
