@@ -69,6 +69,7 @@ export default function SentimentTradingDashboard() {
   );
   const [lastRefresh, setLastRefresh] = useState(null);
   const [trumpFilter, setTrumpFilter] = useState(false);
+  const [alerts, setAlerts] = useState([]);
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress"];
@@ -142,6 +143,40 @@ export default function SentimentTradingDashboard() {
         const parsed = JSON.parse(raw);
         setAnalysis(parsed);
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+
+        // Check for high-severity alert
+        const severity = parsed.severity || parsed.conviction || 0;
+        const confidence = parsed.signal?.confidence || 0;
+        if (severity >= 8 || confidence >= 80) {
+          const alert = {
+            id: Date.now(),
+            mode,
+            severity,
+            confidence,
+            sentiment: parsed.sentiment || parsed.policy_direction,
+            action: parsed.signal?.action || parsed.signal?.primary_trade,
+            instrument: parsed.signal?.instrument,
+            headline: text.split("\n")[0].slice(0, 100),
+            timestamp: new Date(),
+          };
+          setAlerts((prev) => [alert, ...prev]);
+
+          // Audio ping
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = severity >= 9 ? 880 : 660;
+            osc.type = "sine";
+            gain.gain.value = 0.15;
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            osc.stop(ctx.currentTime + 0.4);
+          } catch {}
+        }
+
         setHistory((prev) => {
           const next = [
             { text, mode, analysis: parsed, timestamp: new Date() },
@@ -190,6 +225,64 @@ export default function SentimentTradingDashboard() {
           <span style={styles.statusText}>PROTOTYPE</span>
         </div>
       </header>
+
+      {/* Alert Banners */}
+      {alerts.length > 0 && (
+        <div style={styles.alertContainer}>
+          {alerts.map((alert) => (
+            <div
+              key={alert.id}
+              style={{
+                ...styles.alertBanner,
+                borderColor:
+                  alert.severity >= 9 ? "#ff3366" : "#ffcc00",
+              }}
+            >
+              <div style={styles.alertLeft}>
+                <span
+                  style={{
+                    ...styles.alertSeverity,
+                    background: alert.severity >= 9 ? "#ff3366" : "#ffcc00",
+                  }}
+                >
+                  SEVERITY {alert.severity}/10
+                </span>
+                <span
+                  style={{
+                    ...styles.alertAction,
+                    color:
+                      alert.action === "LONG"
+                        ? "#00e599"
+                        : alert.action === "SHORT"
+                        ? "#ff3366"
+                        : "#7b61ff",
+                  }}
+                >
+                  {alert.action}
+                </span>
+                <span style={styles.alertInstrument}>{alert.instrument}</span>
+                <span style={styles.alertConfidence}>
+                  {alert.confidence}% confidence
+                </span>
+              </div>
+              <div style={styles.alertRight}>
+                <span style={styles.alertHeadline}>{alert.headline}</span>
+                <span style={styles.alertTime}>
+                  {alert.timestamp.toLocaleTimeString()}
+                </span>
+              </div>
+              <button
+                onClick={() =>
+                  setAlerts((prev) => prev.filter((a) => a.id !== alert.id))
+                }
+                style={styles.alertDismiss}
+              >
+                x
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Mode Toggle */}
       <div style={styles.modeBar}>
@@ -764,6 +857,79 @@ const styles = {
     letterSpacing: "2px",
     color: "#ffcc00",
     fontWeight: 600,
+  },
+  alertContainer: {
+    padding: "0 28px",
+  },
+  alertBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    padding: "12px 16px",
+    marginTop: "12px",
+    background: "rgba(255,204,0,0.04)",
+    border: "1px solid",
+    borderRadius: "4px",
+    animation: "pulse 2s infinite",
+  },
+  alertLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexShrink: 0,
+  },
+  alertSeverity: {
+    fontSize: "9px",
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+    color: "#000",
+    padding: "3px 8px",
+    borderRadius: "2px",
+  },
+  alertAction: {
+    fontSize: "13px",
+    fontWeight: 700,
+    letterSpacing: "2px",
+  },
+  alertInstrument: {
+    fontSize: "12px",
+    color: "#e0e4ea",
+    fontWeight: 500,
+  },
+  alertConfidence: {
+    fontSize: "10px",
+    color: "#889",
+  },
+  alertRight: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    minWidth: 0,
+  },
+  alertHeadline: {
+    fontSize: "10px",
+    color: "#889",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    flex: 1,
+  },
+  alertTime: {
+    fontSize: "9px",
+    color: "#556",
+    flexShrink: 0,
+  },
+  alertDismiss: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "14px",
+    color: "#556",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    padding: "0 4px",
+    lineHeight: 1,
+    flexShrink: 0,
   },
   modeBar: {
     padding: "20px 28px",
