@@ -792,7 +792,7 @@ export default function SentimentTradingDashboard() {
             {(() => {
               const sym = extractSymbol(analysis.signal?.instrument);
               const t = sym && technicals[sym.toUpperCase()];
-              return (analysis.technical_context || t) ? (
+              return (analysis.entry_trigger || analysis.technical_context || t) ? (
                 <div style={{ ...styles.card, gridColumn: "1 / -1" }}>
                   <div style={styles.cardHeader}>
                     TECHNICAL CONTEXT {sym ? `— ${sym}` : ""}
@@ -879,19 +879,11 @@ export default function SentimentTradingDashboard() {
                       )}
                     </div>
                   )}
-                  {analysis.technical_context && (
+                  {(analysis.entry_trigger || analysis.technical_context?.entry_trigger) && (
                     <div style={{ ...styles.techList, marginTop: t ? "16px" : 0, paddingTop: t ? "16px" : 0, borderTop: t ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
                       <div style={styles.techItem}>
-                        <span style={styles.techLabel}>AI INTERPRETATION — KEY LEVELS</span>
-                        <span style={styles.techValue}>{analysis.technical_context.key_levels}</span>
-                      </div>
-                      <div style={styles.techItem}>
-                        <span style={styles.techLabel}>AI INTERPRETATION — INDICATORS</span>
-                        <span style={styles.techValue}>{analysis.technical_context.indicators_to_watch}</span>
-                      </div>
-                      <div style={styles.techItem}>
-                        <span style={styles.techLabel}>AI INTERPRETATION — ENTRY TRIGGER</span>
-                        <span style={styles.techValue}>{analysis.technical_context.entry_trigger}</span>
+                        <span style={styles.techLabel}>ENTRY TRIGGER</span>
+                        <span style={styles.techValue}>{analysis.entry_trigger || analysis.technical_context?.entry_trigger}</span>
                       </div>
                     </div>
                   )}

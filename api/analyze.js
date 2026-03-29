@@ -37,11 +37,7 @@ Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
       "note": "1 sentence on why this specific ticker"
     }
   ],
-  "technical_context": {
-    "key_levels": "IMPORTANT: Derive support/resistance ONLY from the live market data provided below (Bollinger Bands, 6M range, current price). NEVER use memorized price levels — they are outdated.",
-    "indicators_to_watch": "Reference the REAL indicator values from the live data (RSI, MACD, volume ratio) and explain what they signal",
-    "entry_trigger": "Based on the REAL current price and indicators provided, what specific price action would confirm this trade"
-  },
+  "entry_trigger": "Based on the live market data provided, what specific price action or catalyst would confirm this trade (1 sentence)",
   "rationale": "2-3 sentence explanation of the trade logic",
   "risks": "1-2 sentence key risk to this trade"
 }`;
