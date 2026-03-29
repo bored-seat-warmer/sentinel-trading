@@ -114,6 +114,7 @@ export default function SentimentTradingDashboard() {
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [prices, setPrices] = useState({});
   const [technicals, setTechnicals] = useState({});
+  const [regime, setRegime] = useState(null);
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress", "Crypto"];
@@ -154,6 +155,10 @@ export default function SentimentTradingDashboard() {
 
   useEffect(() => {
     fetchNews();
+    fetch("/api/regime")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setRegime(d.regime))
+      .catch(() => {});
     const interval = setInterval(fetchNews, AUTO_REFRESH_MS);
     return () => clearInterval(interval);
   }, [fetchNews]);
@@ -415,6 +420,104 @@ export default function SentimentTradingDashboard() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Market Regime Bar */}
+      {regime && (
+        <div style={styles.regimeBar}>
+          <div style={styles.regimeOverall}>
+            <span style={styles.regimeLabel}>MARKET REGIME</span>
+            <span
+              style={{
+                ...styles.regimeBadge,
+                background:
+                  regime.overall === "RISK-ON" ? "#00e599"
+                    : regime.overall === "RISK-OFF" ? "#ff3366"
+                    : "#ffcc00",
+              }}
+            >
+              {regime.overall}
+            </span>
+          </div>
+          <div style={styles.regimeIndicators}>
+            {regime.vix && (
+              <div style={styles.regimeItem}>
+                <span style={styles.regimeItemLabel}>VIX</span>
+                <span
+                  style={{
+                    ...styles.regimeItemValue,
+                    color: regime.vix.value <= 15 ? "#00e599"
+                      : regime.vix.value <= 20 ? "#ffcc00"
+                      : regime.vix.value <= 30 ? "#ff6b35"
+                      : "#ff3366",
+                  }}
+                >
+                  {regime.vix.value}
+                </span>
+                <span style={styles.regimeItemSub}>
+                  {regime.vix.trend || ""}
+                </span>
+              </div>
+            )}
+            {regime.spyTrend && (
+              <div style={styles.regimeItem}>
+                <span style={styles.regimeItemLabel}>SPY TREND</span>
+                <span
+                  style={{
+                    ...styles.regimeItemValue,
+                    color: regime.spyTrend.trend === "BULLISH" ? "#00e599"
+                      : regime.spyTrend.trend === "BEARISH" ? "#ff3366"
+                      : "#ffcc00",
+                  }}
+                >
+                  {regime.spyTrend.trend}
+                </span>
+              </div>
+            )}
+            {regime.breadth && (
+              <div style={styles.regimeItem}>
+                <span style={styles.regimeItemLabel}>BREADTH</span>
+                <span
+                  style={{
+                    ...styles.regimeItemValue,
+                    color: regime.breadth.spread > 1 ? "#00e599"
+                      : regime.breadth.spread < -1 ? "#ff3366"
+                      : "#889",
+                  }}
+                >
+                  {regime.breadth.spread > 1 ? "BROAD"
+                    : regime.breadth.spread < -1 ? "NARROW"
+                    : "BALANCED"}
+                </span>
+              </div>
+            )}
+            {regime.credit && (
+              <div style={styles.regimeItem}>
+                <span style={styles.regimeItemLabel}>CREDIT</span>
+                <span
+                  style={{
+                    ...styles.regimeItemValue,
+                    color: regime.credit.change1m < -2 ? "#ff3366"
+                      : regime.credit.change1m > 1 ? "#00e599"
+                      : "#889",
+                  }}
+                >
+                  {regime.credit.change1m < -2 ? "STRESS"
+                    : regime.credit.change1m > 1 ? "CALM"
+                    : "STABLE"}
+                </span>
+              </div>
+            )}
+            {regime.yieldCurve && (
+              <div style={styles.regimeItem}>
+                <span style={styles.regimeItemLabel}>YIELD CURVE</span>
+                <span style={{ ...styles.regimeItemValue, color: "#889" }}>
+                  {regime.yieldCurve.trend?.toUpperCase() || "N/A"}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1459,6 +1562,59 @@ const styles = {
     letterSpacing: "2px",
     color: "#ffcc00",
     fontWeight: 600,
+  },
+  regimeBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: "24px",
+    padding: "12px 28px",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.01)",
+  },
+  regimeOverall: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexShrink: 0,
+  },
+  regimeLabel: {
+    fontSize: "9px",
+    letterSpacing: "2px",
+    color: "#556",
+    fontWeight: 600,
+  },
+  regimeBadge: {
+    fontSize: "10px",
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+    color: "#000",
+    padding: "3px 10px",
+    borderRadius: "2px",
+  },
+  regimeIndicators: {
+    display: "flex",
+    gap: "20px",
+    flex: 1,
+  },
+  regimeItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  regimeItemLabel: {
+    fontSize: "9px",
+    letterSpacing: "1px",
+    color: "#445",
+    fontWeight: 600,
+  },
+  regimeItemValue: {
+    fontSize: "11px",
+    fontWeight: 600,
+    letterSpacing: "0.5px",
+  },
+  regimeItemSub: {
+    fontSize: "9px",
+    color: "#556",
   },
   alertContainer: {
     padding: "0 28px",

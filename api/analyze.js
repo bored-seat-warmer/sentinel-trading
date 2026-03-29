@@ -177,10 +177,27 @@ export default async function handler(req, res) {
     ];
 
     const baseUrl = `https://${req.headers.host || "localhost:3000"}`;
-    const techResp = await fetch(
-      `${baseUrl}/api/technicals?symbols=${benchmarks.join(",")}`,
-      { headers: { "User-Agent": "AtlasAlpha/1.0" } }
-    );
+    const [techResp, regimeResp] = await Promise.all([
+      fetch(`${baseUrl}/api/technicals?symbols=${benchmarks.join(",")}`, {
+        headers: { "User-Agent": "AtlasAlpha/1.0" },
+      }),
+      fetch(`${baseUrl}/api/regime`, {
+        headers: { "User-Agent": "AtlasAlpha/1.0" },
+      }),
+    ]);
+
+    // Regime context
+    let regimeContext = "";
+    if (regimeResp.ok) {
+      const { regime } = await regimeResp.json();
+      const parts = [`MARKET REGIME: ${regime.overall}`];
+      if (regime.vix) parts.push(`VIX: ${regime.vix.value} (${regime.vix.level}), trend: ${regime.vix.trend || "n/a"}`);
+      if (regime.yieldCurve) parts.push(`Yield curve: ${regime.yieldCurve.trend || "n/a"} (${regime.yieldCurve.signal || "n/a"})`);
+      if (regime.breadth) parts.push(`Breadth: ${regime.breadth.signal} (SPY 1m: ${regime.breadth.spyReturn1m}%, RSP 1m: ${regime.breadth.rspReturn1m}%)`);
+      if (regime.credit) parts.push(`Credit: ${regime.credit.signal} (HYG 1m: ${regime.credit.change1m}%)`);
+      if (regime.spyTrend) parts.push(`SPY trend: ${regime.spyTrend.trend} (price: $${regime.spyTrend.price}, above 20d SMA: ${regime.spyTrend.aboveSma20}, above 50d SMA: ${regime.spyTrend.aboveSma50})`);
+      regimeContext = parts.join("\n");
+    }
 
     if (techResp.ok) {
       const { technicals } = await techResp.json();
@@ -213,7 +230,7 @@ export default async function handler(req, res) {
       });
 
       if (lines.length > 0) {
-        marketContext = `\n\n[LIVE MARKET DATA as of right now — these are the ONLY correct prices and indicator values. Your training data prices are OUTDATED and WRONG. For example, BTC may be in the $60K-70K range, NOT $90K+. You MUST use ONLY these values for any price levels, support/resistance, key levels, and indicator references in your response.]\n${lines.join("\n")}`;
+        marketContext = `\n\n[LIVE MARKET DATA as of right now — these are the ONLY correct prices and indicator values. Your training data prices are OUTDATED and WRONG. You MUST use ONLY these values for any price levels, support/resistance, key levels, and indicator references in your response.]\n${regimeContext ? regimeContext + "\n\n" : ""}${lines.join("\n")}`;
       }
     }
   } catch {}
