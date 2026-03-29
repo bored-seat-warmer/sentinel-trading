@@ -204,6 +204,9 @@ export default function SentimentTradingDashboard() {
         });
 
         if (!response.ok) {
+          if (response.status === 504) {
+            throw new Error("Vercel function timed out. The article may be too long or the API is slow. Consider upgrading to Vercel Pro for 60s timeout (free tier is 10s).");
+          }
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || `Request failed (${response.status})`);
         }
@@ -291,6 +294,9 @@ export default function SentimentTradingDashboard() {
     try {
       const res = await fetch(`/api/article?url=${encodeURIComponent(link)}`);
       if (!res.ok) {
+        if (res.status === 504) {
+          throw new Error("Vercel function timed out fetching the article. The site may be slow to respond. Consider upgrading to Vercel Pro for 60s timeout.");
+        }
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to fetch article");
       }
@@ -343,6 +349,9 @@ export default function SentimentTradingDashboard() {
       });
 
       if (!response.ok) {
+        if (response.status === 504) {
+          throw new Error("Vercel function timed out. Batch analysis with many articles may exceed the free tier 10s limit. Consider upgrading to Vercel Pro.");
+        }
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || `Request failed (${response.status})`);
       }
