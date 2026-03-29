@@ -284,6 +284,28 @@ export default function SentimentTradingDashboard() {
     analyzeHeadline(text);
   };
 
+  const deepAnalyze = async (title, link) => {
+    setLoading(true);
+    setError(null);
+    setHeadline(`${title}\n\nFetching full article...`);
+    try {
+      const res = await fetch(`/api/article?url=${encodeURIComponent(link)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to fetch article");
+      }
+      const { content } = await res.json();
+      const fullText = `${title}\n\n${content}`;
+      setHeadline(fullText);
+      setLoading(false);
+      analyzeHeadline(fullText);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Could not fetch article content.");
+      setLoading(false);
+    }
+  };
+
   const toggleSelectArticle = (index) => {
     setSelectedArticles((prev) => {
       const next = new Set(prev);
@@ -1425,17 +1447,31 @@ export default function SentimentTradingDashboard() {
                   <div style={styles.newsTitle}>{article.title}</div>
                 </div>
               </div>
-              {article.link && (
-                <a
-                  href={article.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.articleLink}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  READ ARTICLE
-                </a>
-              )}
+              <div style={styles.newsItemActions}>
+                {article.link && (
+                  <button
+                    style={styles.deepAnalyzeBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deepAnalyze(article.title, article.link);
+                    }}
+                    disabled={loading}
+                  >
+                    DEEP ANALYZE
+                  </button>
+                )}
+                {article.link && (
+                  <a
+                    href={article.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.articleLink}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    READ ARTICLE
+                  </a>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -2365,6 +2401,25 @@ const styles = {
   newsClickable: {
     cursor: "pointer",
     flex: 1,
+  },
+  newsItemActions: {
+    display: "flex",
+    gap: "6px",
+    marginTop: "8px",
+  },
+  deepAnalyzeBtn: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: "9px",
+    letterSpacing: "1px",
+    color: "#000",
+    background: "linear-gradient(135deg, #00d4ff 0%, #0088aa 100%)",
+    textDecoration: "none",
+    padding: "3px 8px",
+    border: "none",
+    borderRadius: "2px",
+    cursor: "pointer",
+    fontWeight: 600,
+    transition: "all 0.15s",
   },
   articleLink: {
     fontFamily: "'JetBrains Mono', monospace",
