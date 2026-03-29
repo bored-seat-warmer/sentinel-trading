@@ -37,9 +37,9 @@ Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
     }
   ],
   "technical_context": {
-    "key_levels": "Mention relevant support/resistance price levels if widely known for the primary instrument",
-    "indicators_to_watch": "Which technical indicators (MACD, RSI, VWAP, volume) are most relevant and why",
-    "entry_trigger": "What price action or indicator signal would confirm this trade"
+    "key_levels": "IMPORTANT: Derive support/resistance ONLY from the live market data provided below (Bollinger Bands, 6M range, current price). NEVER use memorized price levels — they are outdated.",
+    "indicators_to_watch": "Reference the REAL indicator values from the live data (RSI, MACD, volume ratio) and explain what they signal",
+    "entry_trigger": "Based on the REAL current price and indicators provided, what specific price action would confirm this trade"
   },
   "rationale": "2-3 sentence explanation of the trade logic",
   "risks": "1-2 sentence key risk to this trade"
@@ -215,7 +215,7 @@ export default async function handler(req, res) {
       });
 
       if (lines.length > 0) {
-        marketContext = `\n\n[LIVE MARKET DATA — use these REAL computed indicators for your technical analysis. Do NOT guess or use training data for price levels or indicator values. Base all technical context on this data.]\n${lines.join("\n")}`;
+        marketContext = `\n\n[LIVE MARKET DATA as of right now — these are the ONLY correct prices and indicator values. Your training data prices are OUTDATED and WRONG. For example, BTC may be in the $60K-70K range, NOT $90K+. You MUST use ONLY these values for any price levels, support/resistance, key levels, and indicator references in your response.]\n${lines.join("\n")}`;
       }
     }
   } catch {}
