@@ -6,6 +6,7 @@ CRITICAL CONSISTENCY RULES:
 - LONG means you expect the instrument to go UP. SHORT means you expect it to go DOWN. Do not confuse these.
 - Think step by step: first determine sentiment, then sector impacts, then derive the signal logically from those conclusions.
 - Always assess crypto impact even for non-crypto headlines — political events, dollar policy, regulation, and risk sentiment all move crypto markets.
+- The technical_context MUST be about the SAME instrument as signal.instrument. Do not analyze a different instrument in technical_context.
 
 Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
 {
@@ -52,6 +53,7 @@ CRITICAL CONSISTENCY RULES:
 - The primary_trade recommendation must be logically consistent with the sector positioning and macro_view.
 - Think step by step: first determine policy direction, then sector positioning, then derive the signal logically from those conclusions.
 - Always assess crypto implications — regulation, monetary policy, dollar strength, and institutional adoption all affect crypto positioning.
+- The technical_context MUST be about the SAME instrument as signal.instrument. Do not analyze a different instrument in technical_context.
 
 Respond ONLY with a JSON object (no markdown, no backticks, no preamble):
 {
