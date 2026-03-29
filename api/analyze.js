@@ -168,35 +168,55 @@ export default async function handler(req, res) {
       ? REACTIVE_SYSTEM_PROMPT
       : POLICY_SYSTEM_PROMPT;
 
-  // Fetch live benchmark prices to give Claude current market context
-  let priceContext = "";
+  // Fetch real technical indicator data for key instruments
+  let marketContext = "";
   try {
     const benchmarks = [
-      "SPY", "QQQ", "IWM", "DIA",          // broad market
-      "XLE", "XLF", "XLK", "XLV", "XLI",   // sector ETFs
-      "SOXX", "GLD", "TLT", "UNG",          // semis, gold, bonds, natgas
-      "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD", // crypto
-      "DX-Y.NYB",                            // dollar index
+      "SPY", "QQQ", "IWM",
+      "XLE", "XLF", "XLK", "XLV",
+      "SOXX", "GLD", "TLT",
+      "BTC", "ETH", "SOL", "XRP",
     ];
-    const quotes = await Promise.allSettled(
-      benchmarks.map(async (sym) => {
-        const r = await fetch(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`,
-          { headers: { "User-Agent": "AtlasAlpha/1.0" } }
-        );
-        if (!r.ok) return null;
-        const d = await r.json();
-        const meta = d.chart?.result?.[0]?.meta;
-        if (!meta) return null;
-        const label = sym.replace("-USD", "").replace("DX-Y.NYB", "DXY");
-        return `${label}: $${meta.regularMarketPrice.toLocaleString()}`;
-      })
+
+    const baseUrl = `https://${req.headers.host || "localhost:3000"}`;
+    const techResp = await fetch(
+      `${baseUrl}/api/technicals?symbols=${benchmarks.join(",")}`,
+      { headers: { "User-Agent": "AtlasAlpha/1.0" } }
     );
-    const lines = quotes
-      .filter((q) => q.status === "fulfilled" && q.value)
-      .map((q) => q.value);
-    if (lines.length > 0) {
-      priceContext = `\n\n[CURRENT MARKET PRICES — use these for any technical levels, support/resistance, and key levels in your analysis]\n${lines.join(" | ")}`;
+
+    if (techResp.ok) {
+      const { technicals } = await techResp.json();
+      const lines = Object.entries(technicals).map(([sym, t]) => {
+        const parts = [`${sym}: $${t.price}`];
+        if (t.rsi14 != null) {
+          const rsiLabel = t.rsi14 >= 70 ? "OVERBOUGHT" : t.rsi14 <= 30 ? "OVERSOLD" : "neutral";
+          parts.push(`RSI(14)=${t.rsi14} (${rsiLabel})`);
+        }
+        if (t.macd) {
+          parts.push(`MACD=${t.macd.macd} signal=${t.macd.signal} histogram=${t.macd.histogram} crossover=${t.macd.crossover}`);
+        }
+        if (t.bollingerBands) {
+          const bb = t.bollingerBands;
+          const bbLabel = bb.position >= 0.9 ? "near upper band" : bb.position <= 0.1 ? "near lower band" : "mid-band";
+          parts.push(`BB(20): ${bb.lower}-${bb.upper} (${bbLabel})`);
+        }
+        if (t.volume) {
+          parts.push(`Vol=${t.volume.ratio}x 20d avg`);
+        }
+        if (t.returns) {
+          const r = t.returns;
+          parts.push(`Returns: 1d=${r["1d"]}% 5d=${r["5d"]}% 1m=${r["1m"]}%`);
+        }
+        if (t.range) {
+          const pct = Math.round(t.range.position * 100);
+          parts.push(`6mo range: $${t.range.low}-$${t.range.high} (${pct}% from low)`);
+        }
+        return parts.join(" | ");
+      });
+
+      if (lines.length > 0) {
+        marketContext = `\n\n[LIVE MARKET DATA — use these REAL computed indicators for your technical analysis. Do NOT guess or use training data for price levels or indicator values. Base all technical context on this data.]\n${lines.join("\n")}`;
+      }
     }
   } catch {}
 
@@ -212,7 +232,7 @@ export default async function handler(req, res) {
         model: "claude-sonnet-4-20250514",
         max_tokens: mode === "batch" ? 2048 : 1024,
         system: systemPrompt,
-        messages: [{ role: "user", content: text.trim() + priceContext }],
+        messages: [{ role: "user", content: text.trim() + marketContext }],
       }),
     });
 

@@ -113,6 +113,7 @@ export default function SentimentTradingDashboard() {
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [prices, setPrices] = useState({});
+  const [technicals, setTechnicals] = useState({});
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress", "Crypto"];
@@ -159,21 +160,27 @@ export default function SentimentTradingDashboard() {
 
   const fetchPrices = useCallback(async (analysisData) => {
     const symbols = new Set();
-    // Primary instrument
     const primary = extractSymbol(analysisData.signal?.instrument || analysisData.overall_signal?.instrument);
     if (primary) symbols.add(primary);
-    // Tickers array
     analysisData.tickers?.forEach((t) => { if (t.symbol) symbols.add(t.symbol); });
-    // Crypto assets
     analysisData.crypto_impact?.assets?.forEach((a) => { if (a.symbol) symbols.add(a.symbol); });
 
     if (symbols.size === 0) return;
 
+    const symList = [...symbols].join(",");
     try {
-      const res = await fetch(`/api/prices?symbols=${[...symbols].join(",")}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setPrices((prev) => ({ ...prev, ...data.prices }));
+      const [priceRes, techRes] = await Promise.all([
+        fetch(`/api/prices?symbols=${symList}`),
+        fetch(`/api/technicals?symbols=${symList}`),
+      ]);
+      if (priceRes.ok) {
+        const data = await priceRes.json();
+        setPrices((prev) => ({ ...prev, ...data.prices }));
+      }
+      if (techRes.ok) {
+        const data = await techRes.json();
+        setTechnicals((prev) => ({ ...prev, ...data.technicals }));
+      }
     } catch {}
   }, []);
 
@@ -782,25 +789,115 @@ export default function SentimentTradingDashboard() {
             )}
 
             {/* Technical Context */}
-            {analysis.technical_context && (
-              <div style={styles.card}>
-                <div style={styles.cardHeader}>TECHNICAL CONTEXT</div>
-                <div style={styles.techList}>
-                  <div style={styles.techItem}>
-                    <span style={styles.techLabel}>KEY LEVELS</span>
-                    <span style={styles.techValue}>{analysis.technical_context.key_levels}</span>
+            {(() => {
+              const sym = extractSymbol(analysis.signal?.instrument);
+              const t = sym && technicals[sym.toUpperCase()];
+              return (analysis.technical_context || t) ? (
+                <div style={{ ...styles.card, gridColumn: "1 / -1" }}>
+                  <div style={styles.cardHeader}>
+                    TECHNICAL CONTEXT {sym ? `— ${sym}` : ""}
                   </div>
-                  <div style={styles.techItem}>
-                    <span style={styles.techLabel}>INDICATORS</span>
-                    <span style={styles.techValue}>{analysis.technical_context.indicators_to_watch}</span>
-                  </div>
-                  <div style={styles.techItem}>
-                    <span style={styles.techLabel}>ENTRY TRIGGER</span>
-                    <span style={styles.techValue}>{analysis.technical_context.entry_trigger}</span>
-                  </div>
+                  {t && (
+                    <div style={styles.indicatorGrid}>
+                      <div style={styles.indicatorCard}>
+                        <span style={styles.indicatorLabel}>RSI (14)</span>
+                        <span style={{
+                          ...styles.indicatorValue,
+                          color: t.rsi14 >= 70 ? "#ff3366" : t.rsi14 <= 30 ? "#00e599" : "#e0e4ea",
+                        }}>
+                          {t.rsi14}
+                        </span>
+                        <span style={styles.indicatorTag}>
+                          {t.rsi14 >= 70 ? "OVERBOUGHT" : t.rsi14 <= 30 ? "OVERSOLD" : "NEUTRAL"}
+                        </span>
+                      </div>
+                      {t.macd && (
+                        <div style={styles.indicatorCard}>
+                          <span style={styles.indicatorLabel}>MACD</span>
+                          <span style={{
+                            ...styles.indicatorValue,
+                            color: t.macd.histogram >= 0 ? "#00e599" : "#ff3366",
+                          }}>
+                            {t.macd.histogram > 0 ? "+" : ""}{t.macd.histogram}
+                          </span>
+                          <span style={{
+                            ...styles.indicatorTag,
+                            color: t.macd.crossover === "bullish" ? "#00e599"
+                              : t.macd.crossover === "bearish" ? "#ff3366" : "#556",
+                          }}>
+                            {t.macd.crossover !== "none" ? `${t.macd.crossover.toUpperCase()} CROSS` : "NO CROSS"}
+                          </span>
+                        </div>
+                      )}
+                      {t.bollingerBands && (
+                        <div style={styles.indicatorCard}>
+                          <span style={styles.indicatorLabel}>BOLLINGER</span>
+                          <span style={styles.indicatorValue}>
+                            ${t.bollingerBands.lower} — ${t.bollingerBands.upper}
+                          </span>
+                          <span style={styles.indicatorTag}>
+                            {t.bollingerBands.position >= 0.9 ? "NEAR UPPER"
+                              : t.bollingerBands.position <= 0.1 ? "NEAR LOWER"
+                              : `${Math.round(t.bollingerBands.position * 100)}% IN BAND`}
+                          </span>
+                        </div>
+                      )}
+                      {t.volume && (
+                        <div style={styles.indicatorCard}>
+                          <span style={styles.indicatorLabel}>VOLUME</span>
+                          <span style={{
+                            ...styles.indicatorValue,
+                            color: t.volume.ratio >= 1.5 ? "#ffcc00" : "#e0e4ea",
+                          }}>
+                            {t.volume.ratio}x
+                          </span>
+                          <span style={styles.indicatorTag}>vs 20d avg</span>
+                        </div>
+                      )}
+                      {t.returns && (
+                        <div style={styles.indicatorCard}>
+                          <span style={styles.indicatorLabel}>RETURNS</span>
+                          <div style={styles.returnsList}>
+                            {Object.entries(t.returns).filter(([,v]) => v != null).map(([k, v]) => (
+                              <span key={k} style={{ color: v >= 0 ? "#00e599" : "#ff3366", fontSize: "11px" }}>
+                                {k}: {v > 0 ? "+" : ""}{v}%
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {t.range && (
+                        <div style={styles.indicatorCard}>
+                          <span style={styles.indicatorLabel}>6M RANGE</span>
+                          <span style={styles.indicatorValue}>
+                            ${t.range.low.toLocaleString()} — ${t.range.high.toLocaleString()}
+                          </span>
+                          <span style={styles.indicatorTag}>
+                            {Math.round(t.range.position * 100)}% from low
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {analysis.technical_context && (
+                    <div style={{ ...styles.techList, marginTop: t ? "16px" : 0, paddingTop: t ? "16px" : 0, borderTop: t ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                      <div style={styles.techItem}>
+                        <span style={styles.techLabel}>AI INTERPRETATION — KEY LEVELS</span>
+                        <span style={styles.techValue}>{analysis.technical_context.key_levels}</span>
+                      </div>
+                      <div style={styles.techItem}>
+                        <span style={styles.techLabel}>AI INTERPRETATION — INDICATORS</span>
+                        <span style={styles.techValue}>{analysis.technical_context.indicators_to_watch}</span>
+                      </div>
+                      <div style={styles.techItem}>
+                        <span style={styles.techLabel}>AI INTERPRETATION — ENTRY TRIGGER</span>
+                        <span style={styles.techValue}>{analysis.technical_context.entry_trigger}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ) : null;
+            })()}
 
             {/* Rationale */}
             <div style={{ ...styles.card, gridColumn: "1 / -1" }}>
@@ -1833,6 +1930,42 @@ const styles = {
   tickerRowLinks: {
     display: "flex",
     gap: "6px",
+  },
+  indicatorGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "12px",
+  },
+  indicatorCard: {
+    padding: "12px",
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(255,255,255,0.04)",
+    borderRadius: "3px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  indicatorLabel: {
+    fontSize: "9px",
+    letterSpacing: "1.5px",
+    color: "#556",
+    fontWeight: 600,
+  },
+  indicatorValue: {
+    fontSize: "18px",
+    fontWeight: 700,
+    color: "#e0e4ea",
+  },
+  indicatorTag: {
+    fontSize: "9px",
+    letterSpacing: "1px",
+    color: "#667",
+    fontWeight: 600,
+  },
+  returnsList: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
   },
   techList: {
     display: "flex",
