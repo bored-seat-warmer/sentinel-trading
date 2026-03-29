@@ -130,9 +130,9 @@ export default async function handler(req, res) {
       content = meta;
     }
 
-    // Truncate to ~3000 chars to keep Claude's context manageable
-    if (content.length > 3000) {
-      content = content.slice(0, 3000).replace(/\n\n[^\n]*$/, "") + "\n\n[truncated]";
+    // Truncate to ~8000 chars — covers most full articles
+    if (content.length > 8000) {
+      content = content.slice(0, 8000).replace(/\n\n[^\n]*$/, "") + "\n\n[truncated]";
     }
 
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=120");
