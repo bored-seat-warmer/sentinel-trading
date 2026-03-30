@@ -133,7 +133,10 @@ export default function SentimentTradingDashboard() {
   };
 
   const filteredNews = news
-    .filter((a) => activeCategories.has(a.category))
+    .filter((a) => {
+      const cats = a.categories || [a.category];
+      return cats.some((c) => activeCategories.has(c));
+    })
     .filter((a) => !trumpFilter || /trump/i.test(a.title));
 
   const fetchNews = useCallback(async () => {
@@ -1442,7 +1445,14 @@ export default function SentimentTradingDashboard() {
                   tabIndex={0}
                 >
                   <div style={styles.newsItemTop}>
-                    <span style={styles.newsSource}>{article.source}</span>
+                    <span style={styles.newsSource}>
+                      {article.sources ? article.sources.join(" + ") : article.source}
+                    </span>
+                    {article.sourceCount > 1 && (
+                      <span style={styles.multiSourceBadge}>
+                        {article.sourceCount} sources
+                      </span>
+                    )}
                     <span style={styles.newsCategory}>{article.category}</span>
                     <span style={styles.newsTime}>
                       {article.pubDate
@@ -2448,6 +2458,15 @@ const styles = {
     gap: "8px",
     alignItems: "center",
     marginBottom: "6px",
+  },
+  multiSourceBadge: {
+    fontSize: "8px",
+    letterSpacing: "0.5px",
+    fontWeight: 700,
+    color: "#000",
+    background: "#ffcc00",
+    padding: "1px 5px",
+    borderRadius: "2px",
   },
   newsSource: {
     fontSize: "9px",
