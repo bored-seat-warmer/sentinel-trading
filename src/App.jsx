@@ -823,18 +823,21 @@ export default function SentimentTradingDashboard() {
                         {analysis.severity}/10
                       </span>
                     </div>
-                    <div
-                      style={{
-                        ...styles.sentimentTag,
-                        color:
-                          analysis.sentiment === "bullish"
-                            ? "#00e599"
-                            : analysis.sentiment === "bearish"
-                            ? "#ff3366"
-                            : "#888",
-                      }}
-                    >
-                      {analysis.sentiment?.toUpperCase()}
+                    <div style={styles.sentimentRow}>
+                      <span style={styles.sentimentLabel}>MARKET SENTIMENT</span>
+                      <span
+                        style={{
+                          ...styles.sentimentTag,
+                          color:
+                            analysis.sentiment === "bullish"
+                              ? "#00e599"
+                              : analysis.sentiment === "bearish"
+                              ? "#ff3366"
+                              : "#888",
+                        }}
+                      >
+                        {analysis.sentiment?.toUpperCase()}
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -883,8 +886,11 @@ export default function SentimentTradingDashboard() {
                         {analysis.conviction}/10
                       </span>
                     </div>
-                    <div style={{ ...styles.sentimentTag, color: "#7b61ff" }}>
-                      {analysis.policy_direction?.toUpperCase()}
+                    <div style={styles.sentimentRow}>
+                      <span style={styles.sentimentLabel}>POLICY DIRECTION</span>
+                      <span style={{ ...styles.sentimentTag, color: "#7b61ff" }}>
+                        {analysis.policy_direction?.toUpperCase()}
+                      </span>
                     </div>
                   </>
                 )}
@@ -2178,6 +2184,17 @@ const styles = {
     fontWeight: 600,
     minWidth: "35px",
     textAlign: "right",
+  },
+  sentimentRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  sentimentLabel: {
+    fontSize: "9px",
+    letterSpacing: "1.5px",
+    color: "#445",
+    fontWeight: 600,
   },
   sentimentTag: {
     fontSize: "12px",
