@@ -1594,7 +1594,7 @@ export default function SentimentTradingDashboard() {
           <div style={styles.newsControls}>
             {lastRefresh && (
               <span style={styles.lastRefresh}>
-                Updated {lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                Updated {lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}
               </span>
             )}
             <button
@@ -1706,6 +1706,7 @@ export default function SentimentTradingDashboard() {
                         ? new Date(article.pubDate).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
+                            timeZoneName: "short",
                           })
                         : ""}
                     </span>
