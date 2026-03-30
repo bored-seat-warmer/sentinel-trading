@@ -1772,7 +1772,7 @@ export default function SentimentTradingDashboard() {
                     {h.mode === "reactive" ? "REACTIVE" : "POLICY"}
                   </span>
                   <span style={styles.historyTime}>
-                    {h.timestamp.toLocaleTimeString()}
+                    {h.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}
                   </span>
                 </div>
                 <div style={styles.historyText}>{h.text.slice(0, 90)}...</div>
