@@ -45,6 +45,37 @@ const saveHistory = (items) => {
   }
 };
 
+const SIGNALS_KEY = "atlas-alpha-signals";
+const MAX_SIGNALS = 100;
+
+// Timeframe string to approximate hours
+const timeframeToHours = (tf) => {
+  if (!tf) return 24;
+  const t = tf.toLowerCase();
+  if (t.includes("minute")) return 1;
+  if (t === "hours" || t.includes("hour")) return 4;
+  if (t.includes("1-2 day")) return 36;
+  if (t.includes("day")) return 24;
+  if (t.includes("week")) return 168;
+  return 24;
+};
+
+const loadSignals = () => {
+  try {
+    const raw = localStorage.getItem(SIGNALS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+};
+
+const saveSignals = (signals) => {
+  try {
+    localStorage.setItem(SIGNALS_KEY, JSON.stringify(signals.slice(0, MAX_SIGNALS)));
+  } catch {}
+};
+
 const parseAIResponse = (raw) => {
   // Try direct parse first
   try { return JSON.parse(raw); } catch {}
@@ -115,6 +146,7 @@ export default function SentimentTradingDashboard() {
   const [prices, setPrices] = useState({});
   const [technicals, setTechnicals] = useState({});
   const [regime, setRegime] = useState(null);
+  const [trackedSignals, setTrackedSignals] = useState(() => loadSignals());
   const resultsRef = useRef(null);
 
   const NEWS_CATEGORIES = ["Politics", "Economy", "Congress", "Crypto"];
@@ -192,6 +224,89 @@ export default function SentimentTradingDashboard() {
     } catch {}
   }, []);
 
+  const recordSignal = useCallback(async (parsed, headlineText) => {
+    const action = parsed.signal?.action || parsed.overall_signal?.action;
+    const instrument = parsed.signal?.instrument || parsed.overall_signal?.instrument;
+    const sym = extractSymbol(instrument);
+    if (!sym || !action || action === "HOLD") return;
+
+    // Fetch entry price
+    try {
+      const res = await fetch(`/api/prices?symbols=${sym}`);
+      if (!res.ok) return;
+      const { prices: p } = await res.json();
+      const priceData = p[sym.toUpperCase()];
+      if (!priceData) return;
+
+      const signal = {
+        id: Date.now(),
+        symbol: sym.toUpperCase(),
+        action,
+        instrument,
+        confidence: parsed.signal?.confidence || parsed.overall_signal?.confidence || 0,
+        timeframe: parsed.signal?.timeframe || parsed.overall_signal?.timeframe || "1-2 days",
+        entryPrice: priceData.price,
+        headline: headlineText.split("\n")[0].slice(0, 120),
+        timestamp: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + timeframeToHours(parsed.signal?.timeframe || parsed.overall_signal?.timeframe) * 3600000).toISOString(),
+        status: "pending", // pending | correct | incorrect
+        exitPrice: null,
+        returnPct: null,
+      };
+
+      setTrackedSignals((prev) => {
+        const next = [signal, ...prev.slice(0, MAX_SIGNALS - 1)];
+        saveSignals(next);
+        return next;
+      });
+    } catch {}
+  }, []);
+
+  const validateSignals = useCallback(async () => {
+    const now = new Date();
+    const pending = trackedSignals.filter(
+      (s) => s.status === "pending" && new Date(s.expiresAt) <= now
+    );
+    if (pending.length === 0) return;
+
+    const symbols = [...new Set(pending.map((s) => s.symbol))].join(",");
+    try {
+      const res = await fetch(`/api/prices?symbols=${symbols}`);
+      if (!res.ok) return;
+      const { prices: p } = await res.json();
+
+      setTrackedSignals((prev) => {
+        const updated = prev.map((s) => {
+          if (s.status !== "pending" || new Date(s.expiresAt) > now) return s;
+          const priceData = p[s.symbol];
+          if (!priceData) return s;
+
+          const exitPrice = priceData.price;
+          const returnPct = ((exitPrice - s.entryPrice) / s.entryPrice) * 100;
+          const correct =
+            (s.action === "LONG" && exitPrice > s.entryPrice) ||
+            (s.action === "SHORT" && exitPrice < s.entryPrice);
+
+          return {
+            ...s,
+            status: correct ? "correct" : "incorrect",
+            exitPrice,
+            returnPct: Math.round(returnPct * 100) / 100,
+          };
+        });
+        saveSignals(updated);
+        return updated;
+      });
+    } catch {}
+  }, [trackedSignals]);
+
+  // Validate signals on mount and every 5 minutes
+  useEffect(() => {
+    validateSignals();
+    const interval = setInterval(validateSignals, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [validateSignals]);
+
   const analyzeHeadline = useCallback(
     async (text) => {
       if (!text.trim()) return;
@@ -225,6 +340,7 @@ export default function SentimentTradingDashboard() {
         setAnalysis(parsed);
         setBatchAnalysis(null);
         fetchPrices(parsed);
+        recordSignal(parsed, text);
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 
         // Check for high-severity alert
@@ -370,6 +486,7 @@ export default function SentimentTradingDashboard() {
       setBatchAnalysis(parsed);
       setAnalysis(null);
       fetchPrices(parsed);
+      recordSignal(parsed, text);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       setSelectedArticles(new Set());
     } catch (err) {
@@ -1340,6 +1457,130 @@ export default function SentimentTradingDashboard() {
         </div>
       )}
 
+      {/* Signal Track Record */}
+      {trackedSignals.length > 0 && (
+        <div style={styles.trackRecordSection}>
+          <div style={styles.trackRecordHeader}>
+            <span style={styles.cardHeader}>SIGNAL TRACK RECORD</span>
+            <button
+              onClick={() => {
+                setTrackedSignals([]);
+                saveSignals([]);
+              }}
+              style={styles.clearBtn}
+            >
+              RESET
+            </button>
+          </div>
+
+          {/* Stats summary */}
+          {(() => {
+            const resolved = trackedSignals.filter((s) => s.status !== "pending");
+            const correct = resolved.filter((s) => s.status === "correct");
+            const incorrect = resolved.filter((s) => s.status === "incorrect");
+            const pending = trackedSignals.filter((s) => s.status === "pending");
+            const winRate = resolved.length > 0 ? Math.round((correct.length / resolved.length) * 100) : null;
+            const avgConfCorrect = correct.length > 0 ? Math.round(correct.reduce((s, x) => s + x.confidence, 0) / correct.length) : null;
+            const avgConfIncorrect = incorrect.length > 0 ? Math.round(incorrect.reduce((s, x) => s + x.confidence, 0) / incorrect.length) : null;
+            const avgReturn = resolved.length > 0 ? Math.round(resolved.reduce((s, x) => s + (x.returnPct || 0), 0) / resolved.length * 100) / 100 : null;
+
+            return (
+              <div style={styles.trackStats}>
+                <div style={styles.trackStat}>
+                  <span style={styles.trackStatValue}>{trackedSignals.length}</span>
+                  <span style={styles.trackStatLabel}>TOTAL</span>
+                </div>
+                <div style={styles.trackStat}>
+                  <span style={{ ...styles.trackStatValue, color: "#ffcc00" }}>{pending.length}</span>
+                  <span style={styles.trackStatLabel}>PENDING</span>
+                </div>
+                <div style={styles.trackStat}>
+                  <span style={{ ...styles.trackStatValue, color: "#00e599" }}>{correct.length}</span>
+                  <span style={styles.trackStatLabel}>CORRECT</span>
+                </div>
+                <div style={styles.trackStat}>
+                  <span style={{ ...styles.trackStatValue, color: "#ff3366" }}>{incorrect.length}</span>
+                  <span style={styles.trackStatLabel}>INCORRECT</span>
+                </div>
+                {winRate !== null && (
+                  <div style={styles.trackStat}>
+                    <span style={{
+                      ...styles.trackStatValue,
+                      color: winRate >= 60 ? "#00e599" : winRate >= 40 ? "#ffcc00" : "#ff3366",
+                    }}>
+                      {winRate}%
+                    </span>
+                    <span style={styles.trackStatLabel}>WIN RATE</span>
+                  </div>
+                )}
+                {avgReturn !== null && (
+                  <div style={styles.trackStat}>
+                    <span style={{
+                      ...styles.trackStatValue,
+                      color: avgReturn >= 0 ? "#00e599" : "#ff3366",
+                    }}>
+                      {avgReturn > 0 ? "+" : ""}{avgReturn}%
+                    </span>
+                    <span style={styles.trackStatLabel}>AVG RETURN</span>
+                  </div>
+                )}
+                {avgConfCorrect !== null && avgConfIncorrect !== null && (
+                  <div style={styles.trackStat}>
+                    <span style={styles.trackStatValue}>
+                      <span style={{ color: "#00e599" }}>{avgConfCorrect}</span>
+                      {" / "}
+                      <span style={{ color: "#ff3366" }}>{avgConfIncorrect}</span>
+                    </span>
+                    <span style={styles.trackStatLabel}>AVG CONF W/L</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Recent signals */}
+          <div style={styles.trackList}>
+            {trackedSignals.slice(0, 10).map((s) => (
+              <div key={s.id} style={styles.trackItem}>
+                <span style={{
+                  ...styles.trackAction,
+                  color: s.action === "LONG" ? "#00e599" : "#ff3366",
+                }}>
+                  {s.action}
+                </span>
+                <span style={styles.trackSymbol}>{s.symbol}</span>
+                <span style={styles.trackEntry}>${s.entryPrice}</span>
+                {s.status === "pending" ? (
+                  <span style={{ ...styles.trackStatus, color: "#ffcc00" }}>
+                    PENDING
+                  </span>
+                ) : (
+                  <>
+                    <span style={styles.trackEntry}>${s.exitPrice}</span>
+                    <span style={{
+                      ...styles.trackReturn,
+                      color: s.status === "correct" ? "#00e599" : "#ff3366",
+                    }}>
+                      {s.returnPct > 0 ? "+" : ""}{s.returnPct}%
+                    </span>
+                    <span style={{
+                      ...styles.trackStatus,
+                      color: s.status === "correct" ? "#00e599" : "#ff3366",
+                    }}>
+                      {s.status === "correct" ? "CORRECT" : "WRONG"}
+                    </span>
+                  </>
+                )}
+                <span style={styles.trackConf}>{s.confidence}%</span>
+                <span style={styles.trackTime}>
+                  {new Date(s.timestamp).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Live News Feed */}
       <div style={styles.newsSection}>
         <div style={styles.newsHeader}>
@@ -2006,6 +2247,94 @@ const styles = {
     fontSize: "11px",
     color: "#889",
     lineHeight: 1.5,
+  },
+  trackRecordSection: {
+    padding: "24px 28px",
+    borderTop: "1px solid rgba(255,255,255,0.06)",
+  },
+  trackRecordHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "16px",
+  },
+  trackStats: {
+    display: "flex",
+    gap: "20px",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+  },
+  trackStat: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "10px 16px",
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(255,255,255,0.04)",
+    borderRadius: "3px",
+    minWidth: "80px",
+  },
+  trackStatValue: {
+    fontSize: "20px",
+    fontWeight: 700,
+    color: "#e0e4ea",
+  },
+  trackStatLabel: {
+    fontSize: "8px",
+    letterSpacing: "1.5px",
+    color: "#556",
+    fontWeight: 600,
+    marginTop: "4px",
+  },
+  trackList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  trackItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "8px 12px",
+    background: "rgba(255,255,255,0.015)",
+    border: "1px solid rgba(255,255,255,0.04)",
+    borderRadius: "3px",
+    fontSize: "11px",
+  },
+  trackAction: {
+    fontWeight: 700,
+    letterSpacing: "1.5px",
+    fontSize: "10px",
+    minWidth: "45px",
+  },
+  trackSymbol: {
+    fontWeight: 600,
+    color: "#e0e4ea",
+    minWidth: "50px",
+  },
+  trackEntry: {
+    color: "#889",
+    fontSize: "10px",
+  },
+  trackReturn: {
+    fontWeight: 600,
+    fontSize: "11px",
+    minWidth: "55px",
+  },
+  trackStatus: {
+    fontSize: "9px",
+    fontWeight: 700,
+    letterSpacing: "1px",
+    minWidth: "60px",
+  },
+  trackConf: {
+    fontSize: "10px",
+    color: "#556",
+  },
+  trackTime: {
+    fontSize: "9px",
+    color: "#445",
+    marginLeft: "auto",
   },
   historySection: {
     padding: "24px 28px",
